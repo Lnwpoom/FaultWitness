@@ -57,6 +57,28 @@ services:
     networks:
       outer: { ipv4_address: 10.77.2.11 }
 
+  probe-a:
+    <<: *lab
+    command: probe
+    cap_add: [NET_ADMIN]
+    environment:
+      <<: *via-gateway
+      PROBE_ID: A
+      FAULTWITNESS_CONFIG: /app/lab/config.json
+    networks:
+      inner: { ipv4_address: 10.77.1.11 }
+
+  probe-b:
+    <<: *lab
+    command: probe
+    cap_add: [NET_ADMIN]
+    environment:
+      <<: *via-gateway
+      PROBE_ID: B
+      FAULTWITNESS_CONFIG: /app/lab/config.json
+    networks:
+      inner: { ipv4_address: 10.77.1.12 }
+
   # A throwaway container placed like a Probe, for checking the network by hand: `lab selfcheck`.
   toolbox:
     <<: *lab
