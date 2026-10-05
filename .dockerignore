@@ -1,0 +1,9 @@
+node_modules
+.git
+.claude
+.agents
+dist
+data
+results
+prototypes
+docs
