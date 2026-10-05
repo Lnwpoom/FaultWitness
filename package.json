@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "lab": "node --disable-warning=ExperimentalWarning lab/cli.ts"
+    "lab": "node --disable-warning=ExperimentalWarning lab/cli.ts",
+    "collector": "node --disable-warning=ExperimentalWarning src/collector/main.ts",
+    "probe": "node --disable-warning=ExperimentalWarning src/probe/main.ts"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
