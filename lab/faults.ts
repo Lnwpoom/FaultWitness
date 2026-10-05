@@ -71,10 +71,12 @@ function removeRules(service: string, tag: string): void {
   }
 }
 
+// Drops the resolver's answers rather than the queries: a dropped outgoing packet fails at once
+// with EPERM, while a resolver that does not answer makes the Probe wait out its DNS timeout.
 const dropDns = (probe: 'a' | 'b', tag: string) => () => {
   addRules(`probe-${probe}`, tag, [
-    ['OUTPUT', '-d', RESOLVER, '-p', 'udp', '--dport', '53', '-j', 'DROP'],
-    ['OUTPUT', '-d', RESOLVER, '-p', 'tcp', '--dport', '53', '-j', 'DROP'],
+    ['INPUT', '-s', RESOLVER, '-p', 'udp', '--sport', '53', '-j', 'DROP'],
+    ['INPUT', '-s', RESOLVER, '-p', 'tcp', '--sport', '53', '-j', 'DROP'],
   ]);
 };
 
@@ -128,14 +130,14 @@ export const FAULTS: Record<FaultName, Fault> = {
   dnsA: {
     name: 'dnsA',
     label: 'DNS ที่ A ใช้ไม่ตอบ',
-    how: 'iptables บน Probe A ทิ้งแพ็กเก็ตไป resolver พอร์ต 53',
+    how: 'iptables บน Probe A ทิ้งคำตอบจาก resolver พอร์ต 53 — A ถาม DNS แล้วไม่มีใครตอบ',
     expected: ['dns|A'],
     ...iptablesFault('probe-a', 'dnsA', dropDns('a', 'dnsA')),
   },
   dnsB: {
     name: 'dnsB',
     label: 'DNS ที่ B ใช้ไม่ตอบ',
-    how: 'iptables บน Probe B ทิ้งแพ็กเก็ตไป resolver พอร์ต 53',
+    how: 'iptables บน Probe B ทิ้งคำตอบจาก resolver พอร์ต 53 — B ถาม DNS แล้วไม่มีใครตอบ',
     expected: ['dns|B'],
     ...iptablesFault('probe-b', 'dnsB', dropDns('b', 'dnsB')),
   },
@@ -164,7 +166,7 @@ export const FAULTS: Record<FaultName, Fault> = {
     how: 'iptables บนเว็บไซต์ X ตอบ tcp-reset ที่พอร์ต 443 (พอร์ตปิด)',
     expected: ['dest|site-x'],
     ...iptablesFault('site-x', 'siteXDown', () =>
-      addRules('site-x', 'siteXDown', [['INPUT', '-p', 'tcp', '--dport', '443', '-j', 'REJECT', '--reject-with', 'tcp-reset']]),
+      addRules('site-x', 'siteXDown', [['INPUT', '-i', 'eth0', '-p', 'tcp', '--dport', '443', '-j', 'REJECT', '--reject-with', 'tcp-reset']]),
     ),
   },
   certX: {
@@ -248,6 +250,16 @@ export function isFaultName(name: string): name is FaultName {
 /** Expected Diagnosis keys for a set of active Faults (prototype `Lab.expected`). */
 export function expectedKeys(active: Iterable<FaultName>): string[] {
   return [...new Set([...active].flatMap((f) => FAULTS[f].expected))].sort();
+}
+
+/** Applies a Fault; if that fails, undoes whatever part of it took effect and rethrows. */
+export async function applyFault(name: FaultName): Promise<void> {
+  try {
+    await FAULTS[name].apply();
+  } catch (e) {
+    await FAULTS[name].clear().catch(() => undefined);
+    throw e;
+  }
 }
 
 export function activeFaults(): FaultName[] {

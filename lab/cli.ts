@@ -1,6 +1,6 @@
 // The `lab` CLI: `npm run lab -- <command>`. Each command group lives in its own module.
 import { compose, composeLive } from './docker.ts';
-import { FAULTS, FAULT_NAMES, activeFaults, clearAll, isFaultName } from './faults.ts';
+import { FAULTS, FAULT_NAMES, activeFaults, applyFault, clearAll, isFaultName } from './faults.ts';
 import { selfcheck } from './selfcheck.ts';
 
 const USAGE = `usage: npm run lab -- <command>
@@ -42,7 +42,7 @@ async function main(argv: string[]): Promise<number> {
         return 2;
       }
       try {
-        await FAULTS[arg].apply();
+        await applyFault(arg);
       } catch (e) {
         console.error(`fault ${arg} not applied: ${(e as Error).message}`);
         return 1;

@@ -10,4 +10,29 @@ esac
 mkdir -p /lab/active
 cp "$crt" /lab/active/cert.pem
 cp "/lab/certs/$SITE.key" /lab/active/key.pem
-if [ "${2:-}" != --no-reload ]; then nginx -c /lab/etc/nginx-site.conf -s reload; fi
+[ "${2:-}" = --no-reload ] && exit 0
+
+workers() { # PIDs of nginx worker processes
+  for d in /proc/[0-9]*; do
+    case "$(tr '\0' ' ' < "$d/cmdline" 2>/dev/null)" in "nginx: worker"*) echo "${d#/proc/}" ;; esac
+  done
+}
+old=$(workers)
+nginx -c /lab/etc/nginx-site.conf -s reload
+# A reload is graceful: old workers keep accepting for a moment with the old certificate.
+# Return only once every old worker has exited and a fresh handshake sees the new one, so
+# the next Round sees the same certificate from every Probe.
+want=$(openssl x509 -in "$crt" -noout -fingerprint -sha256)
+i=0
+while [ $i -lt 100 ]; do
+  alive=0
+  for pid in $old; do [ -d "/proc/$pid" ] && alive=1; done
+  if [ $alive = 0 ]; then
+    got=$(echo | openssl s_client -connect 127.0.0.1:443 -servername "$SITE.lab" 2>/dev/null | openssl x509 -noout -fingerprint -sha256 2>/dev/null || true)
+    [ "$got" = "$want" ] && exit 0
+  fi
+  i=$((i + 1))
+  sleep 0.1
+done
+echo "use-cert: nginx still serves the old certificate after 10 s" >&2
+exit 1
