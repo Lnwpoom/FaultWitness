@@ -1,0 +1,128 @@
+# FaultWitness Lab: a self-contained replica network on one machine.
+#   inner 10.77.1.0/24: Collector .10, Probe A .11, Probe B .12, Internal Service .20, resolver .53, gateway .254
+#   outer 10.77.2.0/24: Site X .10, Site Y .11, gateway .254
+# Inner containers reach outer only through the gateway, which forwards without NAT.
+name: faultwitness-lab
+
+x-lab: &lab
+  image: faultwitness-lab:latest
+  build:
+    context: ..
+    dockerfile: lab/Dockerfile
+    network: ${LAB_BUILD_NETWORK:-default}
+    args: [http_proxy, https_proxy]
+  init: true
+
+x-via-gateway: &via-gateway
+  ROUTE_TO: 10.77.2.0/24
+  ROUTE_VIA: 10.77.1.254
+  RESOLVER: 10.77.1.53
+
+services:
+  gateway:
+    <<: *lab
+    command: gateway
+    cap_add: [NET_ADMIN]
+    sysctls:
+      net.ipv4.ip_forward: 1
+    networks:
+      inner: { ipv4_address: 10.77.1.254 }
+      outer: { ipv4_address: 10.77.2.254 }
+
+  resolver:
+    <<: *lab
+    command: resolver
+    cap_add: [NET_ADMIN]
+    environment: { ROUTE_TO: 10.77.2.0/24, ROUTE_VIA: 10.77.1.254 }
+    networks:
+      inner: { ipv4_address: 10.77.1.53 }
+
+  local-service:
+    <<: *lab
+    command: local-service
+    networks:
+      inner: { ipv4_address: 10.77.1.20 }
+
+  site-x:
+    <<: *lab
+    command: site
+    cap_add: [NET_ADMIN]
+    environment: { SITE: site-x, ROUTE_TO: 10.77.1.0/24, ROUTE_VIA: 10.77.2.254 }
+    networks:
+      outer: { ipv4_address: 10.77.2.10 }
+
+  site-y:
+    <<: *lab
+    command: site
+    cap_add: [NET_ADMIN]
+    environment: { SITE: site-y, ROUTE_TO: 10.77.1.0/24, ROUTE_VIA: 10.77.2.254 }
+    networks:
+      outer: { ipv4_address: 10.77.2.11 }
+
+  collector:
+    <<: *lab
+    command: collector
+    environment:
+      FAULTWITNESS_CONFIG: /app/lab/config.json
+    ports: ["8080:8080"]   # the only port published to the host: dashboard and API
+    volumes: ["../data/lab:/data"]   # results.jsonl, the Collector's append-only history
+    depends_on:   # the first Round should find both Probes listening
+      probe-a: { condition: service_healthy }
+      probe-b: { condition: service_healthy }
+    networks:
+      inner: { ipv4_address: 10.77.1.10 }
+
+  probe-a:
+    <<: *lab
+    command: probe
+    cap_add: [NET_ADMIN]
+    healthcheck: &probe-health
+      test: ["CMD", "curl", "-sf", "http://localhost:7100/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+      start_period: 5s
+      start_interval: 300ms
+    environment:
+      <<: *via-gateway
+      PROBE_ID: A
+      FAULTWITNESS_CONFIG: /app/lab/config.json
+    networks:
+      inner: { ipv4_address: 10.77.1.11 }
+
+  probe-b:
+    <<: *lab
+    command: probe
+    cap_add: [NET_ADMIN]
+    healthcheck: *probe-health
+    environment:
+      <<: *via-gateway
+      PROBE_ID: B
+      FAULTWITNESS_CONFIG: /app/lab/config.json
+    networks:
+      inner: { ipv4_address: 10.77.1.12 }
+
+  # A throwaway container placed like a Probe, for checking the network by hand: `lab selfcheck`.
+  toolbox:
+    <<: *lab
+    command: toolbox
+    profiles: [tools]
+    cap_add: [NET_ADMIN]
+    environment: *via-gateway
+    networks:
+      inner: { ipv4_address: 10.77.1.99 }
+
+# Fixed bridge names, each trusted by the other network: Docker 28+ otherwise drops packets
+# that arrive on one Lab bridge addressed to a container on the other, which is exactly
+# what routing through the gateway container does.
+networks:
+  inner:
+    driver_opts:
+      com.docker.network.bridge.name: fw-inner
+      com.docker.network.bridge.trusted_host_interfaces: fw-outer
+    ipam: { config: [{ subnet: 10.77.1.0/24, gateway: 10.77.1.1 }] }
+  outer:
+    driver_opts:
+      com.docker.network.bridge.name: fw-outer
+      com.docker.network.bridge.trusted_host_interfaces: fw-inner
+    ipam: { config: [{ subnet: 10.77.2.0/24, gateway: 10.77.2.1 }] }

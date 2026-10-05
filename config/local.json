@@ -1,0 +1,16 @@
+{
+  "collector": { "port": 8080 },
+  "probes": {
+    "A": { "url": "http://127.0.0.1:7101" },
+    "B": { "url": "http://127.0.0.1:7102" }
+  },
+  "targets": {
+    "local-service": { "url": "http://127.0.0.1:7200/" },
+    "site-x": { "url": "https://one.one.one.one/", "ip": "1.1.1.1", "port": 443 },
+    "site-y": { "url": "https://dns.google/", "ip": "8.8.8.8", "port": 443 }
+  },
+  "cadence_ms": 10000,
+  "stale_after_ms": 25000,
+  "timeouts": { "http_ms": 3000, "dns_ms": 2000, "tcp_ms": 3000, "probe_call_ms": 5000 },
+  "results_jsonl": "data/results.jsonl"
+}

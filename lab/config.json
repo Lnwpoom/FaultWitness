@@ -1,0 +1,16 @@
+{
+  "collector": { "port": 8080 },
+  "probes": {
+    "A": { "url": "http://10.77.1.11:7100" },
+    "B": { "url": "http://10.77.1.12:7100" }
+  },
+  "targets": {
+    "local-service": { "url": "http://10.77.1.20:8081/" },
+    "site-x": { "url": "https://site-x.lab/", "ip": "10.77.2.10", "port": 443 },
+    "site-y": { "url": "https://site-y.lab/", "ip": "10.77.2.11", "port": 443 }
+  },
+  "cadence_ms": 10000,
+  "stale_after_ms": 25000,
+  "timeouts": { "http_ms": 3000, "dns_ms": 2000, "tcp_ms": 3000, "probe_call_ms": 5000 },
+  "results_jsonl": "/data/results.jsonl"
+}
