@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — FaultWitness</title>
+<style>
+  :root { --bg:#fafaf9; --fg:#1c1917; --muted:#78716c; --line:#e7e5e4; --card:#fff; --accent:#0f766e; --accent-soft:#e6f4f1; --warn:#b45309; --warn-soft:#fffbeb; --bad:#b91c1c; --bad-soft:#fef2f2; --ok:#15803d; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1c1917; --fg:#f5f5f4; --muted:#a8a29e; --line:#3a3532; --card:#262220; --accent:#5eead4; --accent-soft:#163532; --warn:#fbbf24; --warn-soft:#3a2f12; --bad:#f87171; --bad-soft:#3b1a1a; --ok:#4ade80; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:15px/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif; }
+  main { max-width:1280px; margin:0 auto; padding:28px 16px 80px; }
+  h1 { font-size:1.5rem; margin:0 0 4px; }
+  h2 { font-size:1.1rem; margin:0 0 10px; }
+  h3 { font-size:.78rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:16px 0 6px; }
+  p { margin:0 0 8px; }
+  .banner { background:var(--warn-soft); border:1px solid var(--line); color:var(--warn); padding:8px 12px; border-radius:8px; font-size:.88rem; margin:10px 0 14px; }
+  .question { background:var(--accent-soft); border-radius:8px; padding:12px 14px; margin-bottom:20px; }
+  .muted { color:var(--muted); } .small { font-size:.85rem; }
+  .layout { display:grid; grid-template-columns:minmax(300px, 430px) 1fr; gap:20px; align-items:start; }
+  @media (max-width:980px) { .layout { grid-template-columns:1fr; } }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:16px; overflow-x:auto; }
+  .sticky { position:sticky; top:12px; }
+  @media (max-width:980px) { .sticky { position:static; } }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:8px; padding:5px 11px; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.on { background:var(--accent); border-color:var(--accent); color:var(--bg); }
+  button.primary { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); font-weight:600; }
+  .row { display:flex; flex-wrap:wrap; gap:6px; }
+  .faults { display:grid; grid-template-columns:1fr; gap:6px; }
+  .fault { display:flex; gap:8px; align-items:flex-start; }
+  .fault button { flex:0 0 auto; min-width:4.2rem; }
+  .fault .how { font-size:.8rem; color:var(--muted); }
+  .tabs { display:flex; flex-wrap:wrap; gap:4px; margin-bottom:10px; }
+  .tabs button { font-size:.85rem; padding:3px 9px; }
+  ol.steps { list-style:none; padding:0; margin:8px 0 0; display:flex; flex-direction:column; gap:5px; }
+  ol.steps li { display:flex; gap:8px; align-items:center; }
+  ol.steps .n { width:1.4rem; color:var(--muted); text-align:right; font-size:.85rem; }
+  ol.steps .done button { text-decoration:line-through; }
+  ol.steps .next button { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+  .happened { padding:10px 14px; border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:4px; margin-bottom:16px; }
+  .happened.bad { border-color:var(--bad); background:var(--bad-soft); }
+  .status { display:flex; flex-wrap:wrap; gap:10px; align-items:baseline; justify-content:space-between; }
+  .status .big { font-size:1.35rem; font-weight:700; }
+  .big.ok { color:var(--ok); } .big.bad { color:var(--bad); } .big.warn { color:var(--warn); }
+  .alert { display:inline-block; padding:2px 10px; border-radius:999px; font-size:.85rem; border:1px solid var(--line); }
+  .alert.on { background:var(--bad); color:#fff; border-color:var(--bad); }
+  .alert.watch { color:var(--warn); border-color:var(--warn); }
+  .finding { border:1px solid var(--line); border-radius:8px; padding:12px; margin-top:10px; }
+  .finding .head { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:6px; }
+  .finding .title { font-weight:600; }
+  .cols { display:grid; grid-template-columns:repeat(auto-fit, minmax(200px, 1fr)); gap:12px; }
+  .cols h3 { margin-top:4px; }
+  .tag { display:inline-block; padding:0 8px; border-radius:999px; font-size:.78rem; border:1px solid var(--line); }
+  .tag.st { background:var(--accent-soft); border-color:transparent; }
+  .tag.lv-initial { color:var(--muted); } .tag.lv-repeated { color:var(--warn); border-color:var(--warn); } .tag.lv-confirmed { color:var(--ok); border-color:var(--ok); }
+  ul { margin:0; padding-left:18px; }
+  table { border-collapse:collapse; width:100%; font-size:.88rem; }
+  th, td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; }
+  td.okc { color:var(--ok); } td.badc { color:var(--bad); } td.skip { color:var(--muted); }
+  .dim { opacity:.5; }
+  .obs { margin-top:10px; padding:8px 12px; border-left:3px solid var(--warn); background:var(--warn-soft); border-radius:4px; font-size:.9rem; }
+  .v-ok { color:var(--ok); } .v-bad { color:var(--bad); } .v-warn { color:var(--warn); }
+  details summary { cursor:pointer; color:var(--muted); font-size:.88rem; }
+  code { background:var(--accent-soft); padding:0 4px; border-radius:4px; font-size:.85em; }
+  .metrics { display:grid; grid-template-columns:repeat(auto-fit, minmax(140px, 1fr)); gap:10px; margin-bottom:12px; }
+  .metric { border:1px solid var(--line); border-radius:8px; padding:8px 10px; }
+  .metric b { display:block; font-size:1.2rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>FaultWitness — ระบบรวบรวมหลักฐานเพื่อหาบริเวณที่เน็ตมีปัญหา</h1>
+  <div class="banner">⚠️ PROTOTYPE — โค้ดทิ้งได้ · ส่วนที่ตั้งใจให้ยกไปใช้ต่อมีแค่ <code>&lt;script id="logic"&gt;</code> (ตัววางแผนการตรวจ + ตัววิเคราะห์ → พอร์ตเป็น <code>diagnoser.py</code>) · ส่วน "ห้องแล็บ" เป็นเครือข่ายจำลองแทน <code>agent.py</code> + <code>scenarios/</code> · ตัวเลขทุกตัวในหน้านี้มาจากการจำลอง ไม่ใช่ผลวัดจริง</div>
+  <div class="question">
+    <b>คำถามที่ต้นแบบนี้ตอบ:</b> ถ้าตัววิเคราะห์ได้รับ<b>เฉพาะผลการตรวจ</b> (ไม่รู้ชื่อสถานการณ์) กฎแบบอธิบายได้จะแยก 5 สถานะ —
+    <i>ปกติ · ปัญหาเฉพาะจุด · DNS ผิดปกติ · ภายนอกร่วมเสีย · ปลายทางหนึ่งผิดปกติ/ข้อมูลไม่พอ</i> — ได้ถูกไหม
+    รวมถึงกรณีที่คิดบนกระดาษยาก: เน็ตสะดุดรอบเดียว, เครื่องช้า, probe หลุดแล้วเหลือผลเก่า, ใบรับรอง HTTPS ไม่ผ่าน และเสียสองอย่างพร้อมกัน
+    และ "ตรวจต่อตามอาการ" (DNS/TCP เฉพาะเมื่อพบความผิดปกติ) ประหยัดการทดสอบเทียบกับตรวจทุกอย่างได้จริงหรือไม่
+  </div>
+
+  <div class="layout">
+    <div>
+      <div class="panel">
+        <h2>สถานการณ์นำทาง</h2>
+        <p class="muted small">เลือกแท็บ → ระบบรีเซ็ตเป็นสถานะตั้งต้น แล้วกดปุ่มตามลำดับ</p>
+        <div class="tabs" id="tabs"></div>
+        <div id="walk"></div>
+      </div>
+      <div class="panel">
+        <h2>ห้องแล็บ — ผู้ทดสอบสร้างเหตุขัดข้อง</h2>
+        <p class="muted small">ส่วนนี้ตัววิเคราะห์<b>มองไม่เห็น</b> มันเห็นแค่แถวผลการตรวจที่ probe ส่งมา (ดูได้ใน "ข้อมูลที่ตัววิเคราะห์ได้รับ")</p>
+        <div class="row" style="margin-bottom:10px">
+          <button class="primary" onclick="doAct(s => act.round(s))">▶ ตรวจปัญหา (1 รอบ)</button>
+          <button onclick="doAct(s => act.idle(s))">⏱ เวลาผ่าน 30 วิ ไม่มีผลใหม่</button>
+          <button onclick="doAct(s => act.clear(s))">คืนค่าทุกเหตุ</button>
+          <button onclick="resetAll()">รีเซ็ต</button>
+        </div>
+        <div class="faults" id="faults"></div>
+      </div>
+    </div>
+
+    <div class="sticky">
+      <div id="happened" class="happened"></div>
+      <div class="panel" id="dash"></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <h2>ผลการทดลอง — ฝั่งผู้ทดสอบเทียบคำตอบกับเหตุที่สร้าง</h2>
+    <div id="score"></div>
+  </div>
+
+  <div class="panel">
+    <h2>ชุดทดลอง 5 สถานการณ์ × 5 รอบ (25 รอบ)</h2>
+    <p class="muted small">แต่ละสถานการณ์: ตรวจปกติ 2 รอบ → สร้างเหตุ → ตรวจ 5 รอบ (สถานการณ์ "ปกติ" ตรวจ 5 รอบเลย) · ในเบราว์เซอร์ผลจะถูกเกือบทั้งหมดเพราะโลกจำลองสร้างตามกฎเดียวกัน
+      — ค่าที่มีความหมายจริงคือ <b>เวลาตรวจพบตามจำนวนรอบ</b> และ <b>จำนวนการทดสอบที่ประหยัดได้</b> · ความแม่นยำที่ใส่บนสไลด์ต้องมาจากแล็บจริงเท่านั้น</p>
+    <button class="primary" onclick="runBench()">▶ รันชุดทดลอง 25 รอบ</button>
+    <div id="bench" style="margin-top:10px"></div>
+  </div>
+</main>
+
+<!-- ============================================================
+     LOGIC — pure, no DOM. Liftable into diagnoser.py later.
+     Input: result rows only. Never sees fault/scenario names.
+     ============================================================ -->
+<script id="logic">
+const FaultWitness = (() => {
+  const PROBES = ['A', 'B'];
+  const EXTERNAL = ['site-x', 'site-y'];
+  const TARGETS = ['local-service', ...EXTERNAL];
+  const STALE_AFTER_MS = 25000;
+  const FULL_SWEEP_PER_PROBE = 1 + EXTERNAL.length * 3;   // http local + (http, dns, tcp) per external
+  const STATUS = { normal: 'ปกติ', probe: 'ปัญหาเฉพาะเครื่องหรือเส้นทางของจุดหนึ่ง', dns: 'DNS ผิดปกติ', shared: 'ปัญหาการเข้าถึงปลายทางภายนอกร่วมกัน', dest: 'ปลายทางหนึ่งผิดปกติ', insufficient: 'ข้อมูลยังไม่พอ' };
+  const LEVEL = { initial: 'เบื้องต้น', repeated: 'พบซ้ำ', confirmed: 'ยืนยันจากหลายจุด' };
+  const TN = { 'local-service': 'บริการภายใน', 'site-x': 'เว็บไซต์ X', 'site-y': 'เว็บไซต์ Y' };
+  const ERR = { timeout: 'หมดเวลา', refused: 'ถูกปฏิเสธการเชื่อมต่อ', dns_timeout: 'DNS ไม่ตอบ', dns_error: 'แปลงชื่อไม่ได้', tls_cert: 'ใบรับรองไม่ผ่าน' };
+  const STATE_TH = { down: 'เข้าไม่ได้', svc: 'ต่อได้แต่บริการตอบผิด', dns: 'แปลงชื่อไม่ได้', unknown: 'ยังไม่ได้ตรวจต่อ', none: 'ไม่มีผล' };
+  const list = ts => ts.map(t => TN[t]).join(' และ ');
+  const errOf = r => r ? (ERR[r.error_type] || r.error_type) : 'ไม่มีผล';
+
+  // ---- adaptive test plan: stage 1 always, stage 2 only for external targets that failed somewhere ----
+  const planStage1 = () => PROBES.flatMap(probe => TARGETS.map(target => ({ probe, target, test: 'http' })));
+  function planStage2(stage1) {
+    const failed = EXTERNAL.filter(t => stage1.some(r => r.target === t && !r.success));
+    const probes = PROBES.filter(p => stage1.some(r => r.probe_id === p));
+    // run on every reporting probe, not just the failing one: the other probe is the comparison evidence
+    return probes.flatMap(probe => failed.flatMap(target => [{ probe, target, test: 'dns' }, { probe, target, test: 'tcp' }]));
+  }
+
+  // per probe, per target: the raw rows plus one derived path state
+  //   ok      HTTP by hostname succeeded
+  //   dns     HTTP failed, TCP to the fixed IP ok, DNS lookup failed  → path fine, naming broken
+  //   svc     HTTP failed, TCP ok, DNS ok                             → server answered wrongly (TLS/HTTP)
+  //   down    TCP to the fixed IP failed (or internal HTTP failed)
+  //   unknown HTTP failed but no follow-up ran;  none = probe sent nothing
+  function cells(rows) {
+    const c = {};
+    for (const p of PROBES) { c[p] = {}; for (const t of TARGETS) c[p][t] = {}; }
+    for (const r of rows) c[r.probe_id][r.target][r.test] = r;
+    for (const p of PROBES) for (const t of TARGETS) {
+      const x = c[p][t];
+      x.dnsFail = !!x.dns && !x.dns.success;
+      x.state = !x.http ? 'none' : x.http.success ? 'ok' : t === 'local-service' ? 'down'
+        : !x.tcp ? 'unknown' : !x.tcp.success ? 'down' : x.dnsFail ? 'dns' : 'svc';
+    }
+    return c;
+  }
+  const keyOf = f => f.code === 'nodata' ? 'insufficient' : f.code + (f.probe ? '|' + f.probe : '') + (f.code === 'dest' ? '|' + f.target : '');
+
+  // one round in isolation → findings. Each rule "covers" the (probe, target) failures it explains;
+  // anything left uncovered becomes "ข้อมูลยังไม่พอ" instead of a guess.
+  function diagnoseRound(rows) {
+    const probes = PROBES.filter(p => rows.some(r => r.probe_id === p));
+    const c = cells(rows);
+    const st = (p, t) => c[p][t].state;
+    const reach = (p, t) => st(p, t) === 'ok' || st(p, t) === 'dns';
+    const bad = (p, t) => st(p, t) === 'down' || st(p, t) === 'svc';
+    const covered = new Set(); const cover = (p, t) => covered.add(p + '|' + t);
+    const F = [];
+
+    // R1 DNS (works from a single probe): lookup failed AND (TCP to IP ok  OR  another probe resolved the same name)
+    for (const p of probes) {
+      const peers = probes.filter(q => q !== p);
+      const ts = EXTERNAL.filter(t => c[p][t].dnsFail && (st(p, t) === 'dns' || peers.some(q => c[q][t].dns?.success)));
+      if (!ts.length) continue;
+      ts.filter(t => st(p, t) === 'dns').forEach(t => cover(p, t));
+      F.push({ code: 'dns', probe: p, targets: ts, viaIp: ts.filter(t => st(p, t) === 'dns'), peers: peers.filter(q => ts.every(t => c[q][t].dns?.success)) });
+    }
+    if (probes.length >= 2) {
+      // R2 shared external: every probe reaches internal, no probe reaches any external by IP
+      if (EXTERNAL.every(t => probes.every(p => st(p, t) === 'down')) && probes.every(p => st(p, 'local-service') === 'ok')) {
+        F.push({ code: 'shared', probes });
+        probes.forEach(p => EXTERNAL.forEach(t => cover(p, t)));
+      } else {
+        // R3 one destination: every probe fails it, and every probe reaches some OTHER external target
+        for (const t of TARGETS) {
+          if (!probes.every(p => bad(p, t))) continue;
+          const witness = EXTERNAL.find(o => o !== t && probes.every(p => reach(p, o)));
+          if (!witness) continue;
+          F.push({ code: 'dest', target: t, witness, svc: probes.every(p => st(p, t) === 'svc') });
+          probes.forEach(p => cover(p, t));
+        }
+      }
+      // R4 one probe: it fails a target the other probe reaches in the same round
+      for (const p of probes) {
+        const q = probes.find(x => x !== p);
+        const ts = TARGETS.filter(t => !covered.has(p + '|' + t) && bad(p, t) && reach(q, t));
+        if (!ts.length) continue;
+        ts.forEach(t => cover(p, t));
+        F.push({ code: 'probe', probe: p, peer: q, targets: ts });
+      }
+    }
+    const leftovers = [];
+    for (const p of probes) for (const t of TARGETS) if (st(p, t) !== 'ok' && !covered.has(p + '|' + t)) leftovers.push({ probe: p, target: t, state: st(p, t) });
+    if (leftovers.length) F.push({ code: 'insufficient', leftovers });
+    const absent = PROBES.filter(p => !probes.includes(p));
+    if (absent.length) F.push({ code: 'nodata', absent, present: probes });
+    return { probes, cells: c, findings: F, tests: rows.length, full: probes.length * FULL_SWEEP_PER_PROBE };
+  }
+
+  function explain(f, ctx, streak) {
+    const c = ctx.cells;
+    const seen = streak >= 2 ? `${streak} รอบติดกัน` : 'ในรอบนี้ (ครั้งแรก)';
+    const firstTime = streak < 2 ? ['ยังไม่พบซ้ำ — อาจเป็นการสะดุดชั่วคราว รอรอบถัดไปก่อนแจ้งเตือน'] : [];
+    switch (f.code) {
+      case 'dns': {
+        const p = f.probe, q = f.peers[0] || 'อีกจุด';
+        const evidence = [`${p} แปลงชื่อ ${list(f.targets)} ไม่สำเร็จ ${seen} (${errOf(c[p][f.targets[0]].dns)})`];
+        if (f.viaIp.length) evidence.push(`แต่ ${p} ต่อ TCP ไปยัง IP ของ ${list(f.viaIp)} สำเร็จ → เส้นทางไปปลายทางยังใช้ได้`);
+        for (const x of f.peers) evidence.push(`${x} แปลงชื่อเดียวกันได้${f.targets.every(t => c[x][t].state === 'ok') ? ' และเข้าเว็บไซต์เดียวกันได้' : ''}`);
+        const missing = [`ยังไม่รู้ว่า resolver ที่ตั้งไว้บน ${p} คือเครื่องใด (FaultWitness ไม่อ่านค่าตั้งของเครื่อง)`];
+        if (!f.viaIp.length) missing.push(`TCP จาก ${p} ก็ไม่ผ่าน จึงยังแยกไม่ได้ว่า DNS เสียเอง หรือเป็นอาการร่วมของเส้นทาง`);
+        if (!f.peers.length) missing.push('ไม่มีผลจากอีกจุดมาเทียบ');
+        return { title: `พบความผิดปกติของ DNS ที่ Probe ${p} ใช้`, evidence, missing: [...missing, ...firstTime],
+          next: [`เปรียบเทียบ DNS resolver ที่ตั้งไว้บน ${p} กับ ${q}`, `ลองถามชื่อเดียวกันจาก ${p} ผ่าน resolver ของ ${q}`] };
+      }
+      case 'probe': {
+        const p = f.probe, q = f.peer;
+        const evidence = [];
+        for (const t of f.targets) {
+          const x = c[p][t], y = c[q][t];
+          evidence.push(x.state === 'svc' ? `${p} ต่อ TCP ไป ${TN[t]} ได้ แต่ HTTPS ไม่ผ่าน (${errOf(x.http)})` : `${p} เข้า ${TN[t]} ไม่ได้ ${seen} (${errOf(x.tcp && !x.tcp.success ? x.tcp : x.http)})`);
+          evidence.push(y.state === 'ok' ? `${q} เข้า ${TN[t]} ได้ในรอบเดียวกัน (${y.http.duration_ms} ms)` : `TCP จาก ${q} ไป ${TN[t]} สำเร็จในรอบเดียวกัน`);
+        }
+        const local = f.targets.includes('local-service');
+        const svc = f.targets.some(t => c[p][t].state === 'svc');
+        const next = [];
+        if (local) next.push(`ตรวจ IP, gateway และไฟร์วอลล์บนเครื่อง ${p}`, `ย้าย ${p} ไปเชื่อมต่อจุดเดียวกับ ${q} แล้วตรวจซ้ำ`);
+        if (svc) next.push(`ตรวจนาฬิกาของเครื่อง ${p} และโปรแกรมที่ดักใบรับรอง (proxy/แอนตี้ไวรัส)`);
+        if (f.targets.some(t => t !== 'local-service' && c[p][t].state === 'down')) next.push(`ตรวจเส้นทางขาออกของ ${p} (gateway/route ที่ได้รับ)`);
+        return { title: local && f.targets.length === 1 ? `${p} เข้าบริการภายในไม่ได้ แต่ ${q} เข้าได้` : svc ? `${p} ผ่าน HTTPS ไม่ได้ ขณะที่ ${q} ผ่านได้` : `ปัญหาเฉพาะที่ Probe ${p} หรือเส้นทางจาก ${p}`,
+          evidence, missing: [`ยังแยกไม่ได้ว่าเป็นตัวเครื่อง ${p} สาย/สัญญาณ หรือเส้นทางในเครือข่าย — จึงยังไม่สรุปว่า Wi-Fi เสีย`, ...firstTime], next };
+      }
+      case 'shared': {
+        const evidence = [`ทุกจุด (${f.probes.join(', ')}) เข้าบริการภายในได้ → เครือข่ายภายในปกติ`];
+        for (const t of EXTERNAL) evidence.push(`ทุกจุดต่อ TCP ไป ${TN[t]} ไม่ได้ ${seen} (${errOf(c[f.probes[0]][t].tcp)})`);
+        if (EXTERNAL.every(t => f.probes.every(p => c[p][t].dns?.success))) evidence.push('ทุกจุดแปลงชื่อได้ → ไม่ใช่ปัญหา DNS');
+        return { title: 'ทุกจุดออกภายนอกไม่ได้ แต่ภายในปกติ', evidence,
+          missing: [`ทดสอบปลายทางภายนอกเพียง ${EXTERNAL.length} แห่ง`, 'ยังไม่รู้ว่าหยุดที่ gateway ของเราหรือหลังจากนั้น — จึงยังไม่สรุปว่า ISP เป็นผู้ทำให้เสีย', ...firstTime],
+          next: ['ตรวจ gateway และไฟร์วอลล์ขาออกของเครือข่าย', 'ทดสอบปลายทางภายนอกแห่งที่ 3', 'ติดต่อ ISP พร้อมรายงานนี้ หลังตัดปัญหาฝั่งเราออกแล้ว'] };
+      }
+      case 'dest': {
+        const t = f.target, x = c[ctx.probes[0]][t];
+        const evidence = [`ทุกจุดเข้า ${TN[t]} ไม่ได้ ${seen} (${errOf(x.http)})`, `แต่ทุกจุดเข้า ${TN[f.witness]} ได้`];
+        if (f.svc) evidence.push(`TCP ไป ${TN[t]} สำเร็จและแปลงชื่อได้ — เซิร์ฟเวอร์ตอบ แต่ใบรับรอง HTTPS ไม่ผ่าน: เน็ตไม่ได้เสีย`);
+        else if (t !== 'local-service') evidence.push(`TCP ไป IP ของ ${TN[t]} ก็ไม่ผ่าน (${errOf(x.tcp)})`);
+        return { title: f.svc ? `${TN[t]} ตอบกลับ แต่ใบรับรองไม่ผ่าน` : `${TN[t]} ผิดปกติ ขณะที่ปลายทางอื่นปกติ`, evidence,
+          missing: [...(f.svc ? [] : ['ยังไม่ได้ทดสอบจากนอกเครือข่ายนี้ จึงแยก "ปลายทางล่ม" กับ "เส้นทางเฉพาะไปปลายทาง" ไม่ได้']), ...firstTime],
+          next: f.svc ? [`แจ้งผู้ดูแล ${TN[t]} ว่าใบรับรองไม่ผ่าน`] : [`ตรวจว่าบริการ ${TN[t]} ยังทำงาน`, `ทดสอบ ${TN[t]} จากเครือข่ายอื่น เช่น มือถือ`] };
+      }
+      case 'insufficient':
+        return { title: 'หลักฐานไม่ตรงกับกฎข้อใด', evidence: f.leftovers.map(l => `${l.probe} → ${TN[l.target]}: ${STATE_TH[l.state]}`),
+          missing: ['ไม่เดาสาเหตุเมื่อหลักฐานไม่ครบหรือขัดกัน'], next: ['ตรวจซ้ำอีกรอบ', 'เพิ่มจุดตรวจหรือปลายทางทดสอบ'] };
+      case 'nodata': {
+        const evidence = f.absent.map(p => {
+          const info = ctx.probeInfo.find(i => i.probe === p);
+          return info.lastSeen === null ? `${p}: ยังไม่เคยส่งผล` : `${p}: ${info.label} (ผลล่าสุด ${Math.round((ctx.now - info.lastSeen) / 1000)} วินาทีก่อน) — ไม่นำผลเก่ามาใช้เป็นสถานะปัจจุบัน`;
+        });
+        if (f.present.length) evidence.push(`${f.present.join(', ')} ส่งผลรอบนี้ครบ`);
+        return { title: `ไม่มีผลรอบล่าสุดจาก Probe ${f.absent.join(', ')}`, evidence,
+          missing: ['ไม่มีผลจากอีกจุดมาเทียบ จึงแยก "ปัญหาร่วม" กับ "ปัญหาเฉพาะจุด" ไม่ได้'],
+          next: f.absent.flatMap(p => [`ตรวจว่าเครื่อง ${p} เปิดอยู่และ probe ยังทำงาน`, `ตรวจว่า ${p} ส่งผลถึงเครื่องหลักได้ (พอร์ตของตัวรวบรวม)`]) };
+      }
+    }
+  }
+
+  // "one machine is slow" is an observation, never a fault verdict on its own
+  function slowness(c, probes) {
+    const out = [];
+    for (const p of probes) for (const q of probes) {
+      if (p === q) continue;
+      const rs = TARGETS.map(t => [c[p][t].http, c[q][t].http]).filter(([a, b]) => a?.success && b?.success).map(([a, b]) => a.duration_ms / b.duration_ms).sort((x, y) => x - y);
+      const med = rs[Math.floor(rs.length / 2)];
+      if (rs.length >= 2 && med >= 3) out.push({ probe: p, peer: q, ratio: Math.round(med),
+        text: `${p} ตอบช้ากว่า ${q} ราว ${Math.round(med)} เท่า${c[p]['local-service'].http?.success ? ' รวมถึงบริการภายใน' : ''} แต่ทุกการทดสอบยังผ่าน — สาเหตุอาจอยู่ที่ตัวเครื่อง สาย/สัญญาณ หรือซอฟต์แวร์บน ${p}: ยังไม่สรุปว่า Wi-Fi เสีย`,
+        next: [`ดู CPU/โปรแกรมเบื้องหลังบน ${p}`, `สลับ ${p} ไปใช้สาย LAN หรือย้ายตำแหน่ง แล้วเทียบเวลาอีกครั้ง`] });
+    }
+    return out;
+  }
+
+  // full report from every stored row. Rounds are matched by round_id; levels come from consecutive rounds.
+  function diagnose(rows, now) {
+    const ids = [...new Set(rows.map(r => r.round_id))].sort();
+    if (!ids.length) return null;
+    const rounds = ids.map(id => ({ id, ...diagnoseRound(rows.filter(r => r.round_id === id)) }));
+    const latest = rounds[rounds.length - 1];
+    const latestRows = rows.filter(r => r.round_id === latest.id);
+    const finishedAt = Math.max(...latestRows.map(r => r.finished_at));
+    const stale = now - finishedAt > STALE_AFTER_MS;
+    const probeInfo = PROBES.map(p => {
+      const mine = rows.filter(r => r.probe_id === p);
+      const lastSeen = mine.length ? Math.max(...mine.map(r => r.finished_at)) : null;
+      const inLatest = latest.probes.includes(p);
+      const lost = lastSeen === null || now - lastSeen > STALE_AFTER_MS;
+      return { probe: p, lastSeen, inLatest, lost, label: lost ? 'ขาดการติดต่อ' : inLatest ? 'ส่งผลรอบล่าสุด' : 'ไม่ส่งผลรอบล่าสุด' };
+    });
+    const ctx = { cells: latest.cells, probes: latest.probes, probeInfo, now };
+    const findings = latest.findings.map(f => {
+      const key = keyOf(f);
+      let streak = 0;
+      for (let i = rounds.length - 1; i >= 0 && rounds[i].findings.some(g => keyOf(g) === key); i--) streak++;
+      const multi = f.code === 'dns' ? f.peers.length > 0 : ['probe', 'shared', 'dest'].includes(f.code);
+      const level = streak >= 2 && multi ? 'confirmed' : streak >= 2 ? 'repeated' : 'initial';
+      return { ...f, key, streak, level, levelLabel: LEVEL[level], status: STATUS[f.code === 'nodata' ? 'insufficient' : f.code], ...explain(f, ctx, streak) };
+    });
+    const keys = [...new Set(findings.map(f => f.key))].sort();
+    const overall = stale ? STATUS.insufficient : findings.length ? [...new Set(findings.map(f => f.status))].join(' + ') : STATUS.normal;
+    return {
+      roundId: latest.id, finishedAt, ageMs: now - finishedAt, stale, overall, keys,
+      alert: !stale && findings.some(f => f.streak >= 2),
+      findings, observations: slowness(latest.cells, latest.probes),
+      probes: probeInfo, cells: latest.cells, rows: latestRows, tests: latest.tests, full: latest.full,
+    };
+  }
+
+  // plain object for the JSON export button
+  const report = d => ({
+    tool: 'FaultWitness (prototype)', round_id: d.roundId, stale: d.stale, overall: d.overall, alert: d.alert,
+    findings: d.findings.map(f => ({ status: f.status, title: f.title, evidence_level: f.levelLabel, rounds_seen: f.streak, supporting: f.evidence, missing: f.missing, next_steps: f.next })),
+    observations: d.observations.map(o => o.text),
+    probes: d.probes.map(p => ({ probe_id: p.probe, state: p.label, last_seen_ms: p.lastSeen })),
+    tests_this_round: d.tests, tests_if_full_sweep: d.full, results: d.rows,
+  });
+
+  return { PROBES, EXTERNAL, TARGETS, TN, ERR, STATUS, LEVEL, STALE_AFTER_MS, planStage1, planStage2, diagnoseRound, diagnose, report };
+})();
+</script>
+
+<!-- ============================================================
+     LAB — throwaway stand-in for the real network + scenarios/.
+     Knows the injected faults; the diagnoser never sees them.
+     ============================================================ -->
+<script>
+const Lab = (() => {
+  const FAULTS = {
+    dnsA: { label: 'DNS ที่ A ใช้ไม่ตอบ', how: 'ตั้ง resolver ของ A เป็น DNS ทดสอบที่ไม่ตอบ' },
+    dnsB: { label: 'DNS ที่ B ใช้ไม่ตอบ', how: 'ตั้ง resolver ของ B เป็น DNS ทดสอบที่ไม่ตอบ' },
+    routeA: { label: 'เส้นทาง A → บริการภายในถูกบล็อก', how: 'บล็อก A → พอร์ตบริการทดสอบ (เช่น 8080) เท่านั้น — ห้ามบล็อกพอร์ตตัวรวบรวม ไม่งั้น A จะกลายเป็น "ขาดการติดต่อ"' },
+    localDown: { label: 'เซิร์ฟเวอร์ภายในหยุด', how: 'หยุด HTTP server ภายในบนเครื่องหลัก' },
+    siteXDown: { label: 'เว็บไซต์ X หยุดให้บริการ', how: 'หยุด HTTP server ของปลายทาง X (พอร์ตปิด)' },
+    certX: { label: 'ใบรับรองของเว็บไซต์ X หมดอายุ', how: 'ใช้ใบรับรองทดสอบที่หมดอายุบนปลายทาง X' },
+    egress: { label: 'ทางออกภายนอกร่วมถูกบล็อก', how: 'บล็อกปลายทางภายนอกที่ gateway แล็บ (resolver ของแล็บยังอยู่ภายใน)' },
+    clockA: { label: 'นาฬิกาเครื่อง A เพี้ยน', how: 'ตั้งวันที่ A ย้อนไปปี 2019 → ใบรับรองทุกเว็บ "ยังไม่ถึงวันใช้"' },
+    slowA: { label: 'เครื่อง A ช้า (แต่ยังใช้ได้)', how: 'netem delay บน A หรือ CPU เต็ม — ทุกการทดสอบยังผ่าน' },
+    blipA: { label: 'A สะดุด 1 รอบ แล้วหายเอง', how: 'ตัด A จากบริการภายในชั่วคราวหนึ่งรอบ' },
+    cutA: { label: 'A หลุดจากเครือข่ายทั้งหมด', how: 'ถอดสาย/ปิด Wi-Fi ของ A — A ส่งผลไม่ได้' },
+  };
+  // ground truth the tester writes down; the diagnoser is scored against it
+  const EXPECT = { dnsA: 'dns|A', dnsB: 'dns|B', routeA: 'probe|A', clockA: 'probe|A', blipA: 'probe|A', localDown: 'dest|local-service', siteXDown: 'dest|site-x', certX: 'dest|site-x', egress: 'shared', cutA: 'insufficient' };
+  const expected = f => [...new Set([...f].map(k => EXPECT[k]).filter(Boolean))].sort();
+  const score = (exp, said) => exp.join() === said.join() ? 'ถูก' : said.includes('insufficient') ? 'ข้อมูลไม่พอ' : 'ผิด';
+
+  const BASE = { 'local-service': 18, 'site-x': 120, 'site-y': 180 };
+  const TCP = { 'site-x': 40, 'site-y': 60 };
+  function measure(f, probe, target, test, seq) {
+    const jit = (seq * 7 + (probe === 'A' ? 0 : 3) + target.length * 5) % 9;
+    const slow = probe === 'A' && f.has('slowA') ? 8 : 1;
+    const ok = ms => ({ success: true, ms: Math.round(ms * slow) + jit, err: null });
+    const no = (err, ms) => ({ success: false, ms, err });
+    const dnsDown = (probe === 'A' && f.has('dnsA')) || (probe === 'B' && f.has('dnsB'));
+    const tcpErr = f.has('egress') ? 'timeout' : target === 'site-x' && f.has('siteXDown') ? 'refused' : null;
+    const tcpFail = () => no(tcpErr, tcpErr === 'timeout' ? 3000 : 3);
+    if (target === 'local-service') {
+      if (f.has('localDown')) return no('refused', 2);
+      if (probe === 'A' && (f.has('routeA') || f.has('blipA'))) return no('timeout', 3000);
+      return ok(BASE[target]);
+    }
+    if (test === 'dns') return dnsDown ? no('dns_timeout', 2000) : ok(25);
+    if (test === 'tcp') return tcpErr ? tcpFail() : ok(TCP[target]);
+    // HTTPS by hostname — never rewritten to an IP
+    if (dnsDown) return no('dns_error', 2000);
+    if (tcpErr) return tcpFail();
+    if ((target === 'site-x' && f.has('certX')) || (probe === 'A' && f.has('clockA'))) return no('tls_cert', 90);
+    return ok(BASE[target]);
+  }
+
+  // one round: collector sends stage 1, reads results, decides stage 2 with the pure planner
+  function runRound(f, seq, start) {
+    const id = 'demo-' + String(seq).padStart(3, '0');
+    const reporting = FaultWitness.PROBES.filter(p => !(p === 'A' && f.has('cutA')));
+    const exec = (plan, t0) => plan.filter(x => reporting.includes(x.probe)).map(x => {
+      const m = measure(f, x.probe, x.target, x.test, seq);
+      return { probe_id: x.probe, round_id: id, target: x.target, test: x.test, success: m.success, duration_ms: m.ms, error_type: m.err, started_at: t0, finished_at: t0 + m.ms };
+    });
+    const s1 = exec(FaultWitness.planStage1(), start);
+    const s2 = exec(FaultWitness.planStage2(s1), Math.max(...s1.map(r => r.finished_at)) + 50);
+    return [...s1, ...s2];
+  }
+  return { FAULTS, expected, score, runRound };
+})();
+</script>
+
+<!-- ============================================================
+     PAGE SHELL — throwaway.
+     ============================================================ -->
+<script>
+const FW = FaultWitness;
+const fmtT = ms => { const s = Math.round(ms / 1000); return `T+${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
+const keyLabel = k => k === 'insufficient' ? 'ข้อมูลไม่พอ' : k === 'shared' ? 'ภายนอกร่วมเสีย'
+  : k.startsWith('dns|') ? `DNS ของ ${k.split('|')[1]}` : k.startsWith('probe|') ? `เฉพาะจุด ${k.split('|')[1]}` : `ปลายทาง: ${FW.TN[k.split("|")[1]]}`;
+const keysLabel = ks => ks.length ? ks.map(keyLabel).join(' + ') : 'ปกติ';
+
+function fresh() {
+  return { now: 0, lastStart: -10000, seq: 0, faults: new Set(), rows: [], log: [], changedAt: 0, detectMs: null,
+    last: { text: 'เริ่มต้น: ยังไม่มีผลตรวจ — กด "ตรวจปัญหา" ให้ Probe A และ B ตรวจหนึ่งรอบ', bad: false } };
+}
+
+const act = {
+  round(st) {
+    st.seq++;
+    const start = Math.max(st.lastStart + 10000, st.now);
+    st.lastStart = start;
+    const exp = Lab.expected(st.faults);
+    const faultsNow = [...st.faults];
+    const rows = Lab.runRound(st.faults, st.seq, start);
+    st.rows.push(...rows);
+    st.now = Math.max(...rows.map(r => r.finished_at)) + 200;
+    if (st.faults.delete('blipA')) { st.changedAt = st.now; st.detectMs = null; }
+    const d = FW.diagnose(st.rows, st.now);
+    const verdict = Lab.score(exp, d.keys);
+    const falseAlarm = !exp.length && d.alert;
+    const settled = verdict === 'ถูก' && (exp.length ? d.alert : !d.alert);
+    let detected = '';
+    if (settled && st.detectMs === null && faultsNow.length + st.log.length > 0) {
+      st.detectMs = st.now - st.changedAt;
+      detected = exp.length ? ` · แจ้งเตือนถูกต้องภายใน ${Math.round(st.detectMs / 1000)} วินาทีหลังสร้างเหตุ` : '';
+    }
+    st.log.push({ id: d.roundId, at: st.now, faults: faultsNow, exp, said: d.keys, levels: d.findings.map(f => f.levelLabel), verdict, alert: d.alert, falseAlarm, tests: d.tests, full: d.full, detectMs: settled ? st.detectMs : null });
+    st.last = { bad: verdict !== 'ถูก' || falseAlarm,
+      text: `รอบ ${d.roundId}: ใช้ ${d.tests} การทดสอบ (ถ้าตรวจทุกอย่างต้องใช้ ${d.full}) · ระบบสรุป: <b>${d.overall}</b>${d.findings.length ? ` (${d.findings.map(f => f.levelLabel).join(', ')})` : ''} · เทียบกับเหตุที่สร้าง: <b>${verdict}</b>${falseAlarm ? ' · ⚠️ แจ้งเตือนผิด' : ''}${detected}` };
+  },
+  toggle(st, f) {
+    st.faults.has(f) ? st.faults.delete(f) : st.faults.add(f);
+    st.changedAt = st.now; st.detectMs = null;
+    st.last = { bad: false, text: `ผู้ทดสอบ${st.faults.has(f) ? 'สร้างเหตุ' : 'คืนค่า'}: <b>${Lab.FAULTS[f].label}</b> ที่ ${fmtT(st.now)} — Dashboard ยังไม่เปลี่ยนจนกว่าจะมีรอบตรวจใหม่` };
+  },
+  clear(st) {
+    st.faults.clear(); st.changedAt = st.now; st.detectMs = null;
+    st.last = { bad: false, text: 'คืนค่าทุกเหตุแล้ว — กดตรวจเพื่อดูว่าระบบรายงานกลับเป็นปกติ' };
+  },
+  idle(st) {
+    st.now += 30000;
+    st.last = { bad: false, text: `เวลาผ่านไป 30 วินาทีโดยไม่มีผลใหม่ (ตอนนี้ ${fmtT(st.now)}) — เกณฑ์ข้อมูลเก่าคือ ${FW.STALE_AFTER_MS / 1000} วินาที` };
+  },
+};
+
+let S = fresh();
+let tab = null, stepAt = 0;
+function doAct(fn) { fn(S); render(); }
+function resetAll() { S = fresh(); if (tab !== null) stepAt = 0; render(); }
+
+// ---------------- walkthroughs ----------------
+const R = ['▶ ตรวจปัญหา', s => act.round(s)];
+const T = (f, verb) => [`${verb}: ${Lab.FAULTS[f].label}`, s => act.toggle(s, f)];
+const SCEN = [
+  { name: 'สาธิต 3 นาที', desc: 'ลำดับที่จะใช้หน้ากรรมการ: ปกติ → DNS ของ A เสีย → คืนค่า → ปลายทางหนึ่งเสีย ดูว่าระดับหลักฐานขยับจาก "เบื้องต้น" เป็น "ยืนยันจากหลายจุด" อย่างไร และระบบแยก DNS ออกจากปลายทางเสียได้',
+    steps: [R, T('dnsA', 'สร้างเหตุ'), R, R, T('dnsA', 'คืนค่า'), R, T('siteXDown', 'สร้างเหตุ'), R, R, ['📄 ส่งออกรายงาน JSON', () => exportJson()]] },
+  { name: 'เส้นทางของ A', desc: 'บล็อก A ไปบริการภายใน ระบบควรบอกว่าเป็นปัญหาที่ A หรือเส้นทางจาก A โดยไม่สรุปว่า Wi-Fi เสีย จากนั้นลองทำพลาด "บล็อกมากเกินไป" จน A ส่งผลไม่ได้ — ระบบควรบอกว่าขาดการติดต่อ ไม่ใช่เดา',
+    steps: [R, T('routeA', 'สร้างเหตุ'), R, R, T('routeA', 'คืนค่า'), T('cutA', 'สร้างเหตุ'), R, R, R, R] },
+  { name: 'ภายนอกร่วมเสีย', desc: 'บล็อกทางออกภายนอกที่ gateway ทั้งสองจุดเข้าภายในได้ แต่ TCP ไปทั้ง X และ Y ไม่ได้ ดูว่าระบบบอก "ภายนอกร่วม" แต่ยังไม่โทษ ISP และระบุว่าทดสอบแค่ 2 ปลายทาง',
+    steps: [R, T('egress', 'สร้างเหตุ'), R, R, T('egress', 'คืนค่า'), R] },
+  { name: 'สะดุดรอบเดียว', desc: 'A สะดุดหนึ่งรอบแล้วหายเอง รอบนั้นระบบเห็นแค่ระดับ "เบื้องต้น" จึงยังไม่แจ้งเตือน รอบถัดไปกลับปกติ — นี่คือวิธีกันการแจ้งเตือนผิด แลกกับเวลาตรวจพบที่ช้าลงหนึ่งรอบ',
+    steps: [R, R, T('blipA', 'สร้างเหตุ'), R, R] },
+  { name: 'เครื่อง A ช้า', desc: 'A ช้ากว่า B ราว 8 เท่าแต่ทุกการทดสอบผ่าน ระบบต้องตอบว่า "ปกติ" พร้อมข้อสังเกต และห้ามสรุปว่า Wi-Fi เสีย เพราะอาจเป็นตัวเครื่อง สาย หรือซอฟต์แวร์',
+    steps: [R, T('slowA', 'สร้างเหตุ'), R, R] },
+  { name: 'Probe หลุด + ผลเก่า', desc: 'A หลุดจากเครือข่าย รอบแรกยัง "ไม่ส่งผลรอบล่าสุด" พอเกิน 25 วินาทีเป็น "ขาดการติดต่อ" — ห้ามใช้ผลเก่าของ A เป็นสถานะปัจจุบัน จากนั้นปล่อยเวลาผ่านโดยไม่มีรอบใหม่ ทั้ง Dashboard ต้องบอกว่าข้อมูลเก่า',
+    steps: [R, T('cutA', 'สร้างเหตุ'), R, R, R, T('cutA', 'คืนค่า'), R, ['⏱ เวลาผ่าน 30 วิ ไม่มีผลใหม่', s => act.idle(s)]] },
+  { name: 'HTTPS / ใบรับรอง', desc: 'ทำไม HTTP ต้องใช้ชื่อโฮสต์ ไม่เปลี่ยนเป็น IP: (1) ใบรับรองของ X หมดอายุ — TCP ได้ แปลงชื่อได้ ระบบต้องบอกว่าปลายทางตอบแต่ใบรับรองไม่ผ่าน ไม่ใช่เน็ตเสีย (2) นาฬิกาของ A เพี้ยน — HTTPS ของ A ไม่ผ่านทุกเว็บ แต่ B ผ่าน → เฉพาะจุด A',
+    steps: [R, T('certX', 'สร้างเหตุ'), R, R, T('certX', 'คืนค่า'), T('clockA', 'สร้างเหตุ'), R, R] },
+  { name: 'เสียสองอย่างพร้อมกัน', desc: 'DNS ของ A เสียพร้อมกับเว็บไซต์ X ล่ม แต่ละกฎ "ครอบคลุม" เฉพาะความผิดปกติที่อธิบายได้ จึงรายงานได้สองข้อสรุปแยกกัน · จากนั้นเปลี่ยนเป็น DNS ของ A + ภายนอกร่วมเสีย: TCP ของ A ก็ไม่ผ่าน ระบบยังสงสัย DNS ได้จากการเทียบกับ B แต่บอกตรงๆ ว่าหลักฐานอ่อนลง',
+    steps: [R, T('dnsA', 'สร้างเหตุ'), T('siteXDown', 'สร้างเหตุ'), R, R, T('siteXDown', 'คืนค่า'), T('egress', 'สร้างเหตุ'), R, R] },
+];
+
+function pickTab(i) { tab = i; S = fresh(); stepAt = 0; render(); }
+function doStep(i) { SCEN[tab].steps[i][1](S); stepAt = i + 1; render(); }
+
+// ---------------- exports ----------------
+function download(name, text, type) {
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([text], { type }));
+  a.download = name; a.click();
+}
+function exportJson() {
+  const d = FW.diagnose(S.rows, S.now);
+  if (!d) return;
+  download(`faultwitness-${d.roundId}.json`, JSON.stringify(FW.report(d), null, 2), 'application/json');
+}
+function exportCsv() {
+  const verdict = Object.fromEntries(S.log.map(l => [l.id, keysLabel(l.said)]));
+  const cols = ['probe_id', 'round_id', 'target', 'test', 'success', 'duration_ms', 'error_type', 'started_at', 'finished_at'];
+  const lines = [cols.concat('round_verdict').join(','), ...S.rows.map(r => cols.map(c => r[c] ?? '').concat(`"${verdict[r.round_id]}"`).join(','))];
+  download('faultwitness-results.csv', '﻿' + lines.join('\n'), 'text/csv');
+}
+
+// ---------------- render ----------------
+const TABLE_ROWS = [['local-service', 'http', 'HTTP บริการภายใน'],
+  ...FW.EXTERNAL.flatMap(t => [[t, 'http', `HTTPS ${FW.TN[t]} (ใช้ชื่อโฮสต์)`], [t, 'dns', `DNS lookup ${FW.TN[t]}`], [t, 'tcp', `TCP ไป IP:443 ของ ${FW.TN[t]}`]])];
+
+function cell(d, p, t, test) {
+  const info = d.probes.find(x => x.probe === p);
+  if (!info.inLatest) return '<td class="skip">ไม่มีผล</td>';
+  const r = d.cells[p][t][test];
+  if (!r) return '<td class="skip">— ไม่ได้ตรวจ (ไม่จำเป็น)</td>';
+  return r.success ? `<td class="okc">✓ ${r.duration_ms} ms</td>` : `<td class="badc">✗ ${FW.ERR[r.error_type] || r.error_type} · ${r.duration_ms} ms</td>`;
+}
+
+function renderDash() {
+  const d = FW.diagnose(S.rows, S.now);
+  if (!d) return '<h2>Dashboard ของ FaultWitness</h2><p class="muted">ยังไม่มีผลตรวจ</p>';
+  const cls = d.stale ? 'warn' : d.findings.length ? 'bad' : 'ok';
+  const alert = d.stale ? '<span class="alert watch">ข้อมูลไม่เป็นปัจจุบัน</span>'
+    : d.alert ? '<span class="alert on">🔔 แจ้งเตือน</span>'
+    : d.findings.length ? '<span class="alert watch">เฝ้าดู — พบครั้งแรก รอยืนยัน</span>' : '<span class="alert">ไม่มีแจ้งเตือน</span>';
+  let h = `<h2>Dashboard ของ FaultWitness</h2>
+    <div class="status"><div><div class="big ${cls}">${d.overall}</div>
+      <div class="muted small">ตรวจล่าสุด ${d.roundId} เมื่อ ${fmtT(d.finishedAt)} (${Math.round(d.ageMs / 1000)} วินาทีที่แล้ว) · ตอนนี้ ${fmtT(S.now)}</div></div>${alert}</div>`;
+  if (d.stale) h += `<div class="obs">ไม่มีผลใหม่เกิน ${FW.STALE_AFTER_MS / 1000} วินาที — ไม่แสดงผลรอบ ${d.roundId} เป็นสถานะปัจจุบัน ข้อสรุปเดิมด้านล่างแสดงเพื่ออ้างอิงเท่านั้น</div>`;
+  if (!d.findings.length && !d.stale) h += `<p class="small" style="margin-top:8px">การทดสอบที่กำหนดผ่านจากทุกจุด · ใช้ ${d.tests} การทดสอบ ไม่ต้องตรวจ DNS/TCP เพิ่ม (ตรวจทุกอย่างต้องใช้ ${d.full})</p>`;
+  for (const f of d.findings) {
+    h += `<div class="finding ${d.stale ? 'dim' : ''}"><div class="head"><span class="tag st">${f.status}</span><span class="tag lv-${f.level}">หลักฐาน: ${f.levelLabel} · พบ ${f.streak} รอบ</span></div>
+      <div class="title">${f.title}</div>
+      <div class="cols"><div><h3>หลักฐานที่สนับสนุน</h3><ul>${f.evidence.map(x => `<li>${x}</li>`).join('')}</ul></div>
+      <div><h3>หลักฐานที่ยังขาด</h3><ul>${f.missing.map(x => `<li>${x}</li>`).join('') || '<li class="muted">—</li>'}</ul></div>
+      <div><h3>ตรวจต่อที่แนะนำ</h3><ul>${f.next.map(x => `<li>${x}</li>`).join('')}</ul></div></div></div>`;
+  }
+  for (const o of d.observations) h += `<div class="obs"><b>ข้อสังเกต (ไม่ใช่ข้อสรุป):</b> ${o.text}<br><span class="muted">ตรวจต่อ: ${o.next.join(' · ')}</span></div>`;
+  h += `<h3>Probe A เทียบ Probe B · รอบ ${d.roundId}</h3>
+    <table class="${d.stale ? 'dim' : ''}"><tr><th>การตรวจ</th>${d.probes.map(p => `<th>Probe ${p.probe} · <span class="${p.lost ? 'v-bad' : p.inLatest ? '' : 'v-warn'}">${p.label}</span></th>`).join('')}</tr>
+    ${TABLE_ROWS.map(([t, test, label]) => `<tr><td>${label}</td>${d.probes.map(p => cell(d, p.probe, t, test)).join('')}</tr>`).join('')}</table>
+    <p class="muted small" style="margin-top:6px">รอบนี้ใช้ ${d.tests} การทดสอบ · ตรวจทุกอย่างต้องใช้ ${d.full} · DNS/TCP ทำเฉพาะปลายทางภายนอกที่ HTTP ไม่ผ่าน และทำทั้งสองจุดเพื่อใช้เทียบกัน</p>
+    <div class="row" style="margin:10px 0"><button onclick="exportJson()">📄 ส่งออกรายงาน JSON</button><button onclick="exportCsv()">📊 ส่งออกผลตรวจ CSV</button></div>
+    <details><summary>ข้อมูลที่ตัววิเคราะห์ได้รับรอบนี้ (${d.rows.length} แถว — ไม่มีชื่อสถานการณ์)</summary>
+    <table style="margin-top:6px"><tr><th>probe_id</th><th>round_id</th><th>target</th><th>test</th><th>success</th><th>duration_ms</th><th>error_type</th><th>started_at</th><th>finished_at</th></tr>
+    ${d.rows.map(r => `<tr><td>${r.probe_id}</td><td>${r.round_id}</td><td>${r.target}</td><td>${r.test}</td><td>${r.success}</td><td>${r.duration_ms}</td><td>${r.error_type ?? 'null'}</td><td>${r.started_at}</td><td>${r.finished_at}</td></tr>`).join('')}</table></details>`;
+  return h;
+}
+
+function metricsHtml(log) {
+  const n = log.length;
+  const c = v => log.filter(l => l.verdict === v).length;
+  const tests = log.reduce((a, l) => a + l.tests, 0), full = log.reduce((a, l) => a + l.full, 0);
+  return `<div class="metrics">
+    <div class="metric"><span class="muted small">รอบทั้งหมด</span><b>${n}</b></div>
+    <div class="metric"><span class="muted small">จำแนกถูก</span><b class="v-ok">${c('ถูก')}</b></div>
+    <div class="metric"><span class="muted small">จำแนกผิด</span><b class="v-bad">${c('ผิด')}</b></div>
+    <div class="metric"><span class="muted small">ข้อมูลไม่พอ</span><b class="v-warn">${c('ข้อมูลไม่พอ')}</b></div>
+    <div class="metric"><span class="muted small">แจ้งเตือนผิด</span><b>${log.filter(l => l.falseAlarm).length}</b></div>
+    <div class="metric"><span class="muted small">การทดสอบ ตามอาการ / ตรวจทุกอย่าง</span><b>${tests} / ${full}</b></div></div>`;
+}
+
+function renderScore() {
+  if (!S.log.length) return '<p class="muted">ยังไม่มีรอบตรวจ</p>';
+  return metricsHtml(S.log) + `<table><tr><th>รอบ</th><th>เวลา</th><th>เหตุที่ผู้ทดสอบสร้าง</th><th>คำตอบที่คาดหวัง</th><th>ระบบสรุป (ระดับหลักฐาน)</th><th>ผล</th><th>แจ้งเตือน</th><th>การทดสอบ</th></tr>
+    ${S.log.slice().reverse().map(l => `<tr><td>${l.id}</td><td>${fmtT(l.at)}</td><td>${l.faults.map(f => Lab.FAULTS[f].label).join(', ') || '—'}</td><td>${keysLabel(l.exp)}</td>
+      <td>${keysLabel(l.said)}${l.levels.length ? ` <span class="muted">(${l.levels.join(', ')})</span>` : ''}</td>
+      <td class="${l.verdict === 'ถูก' ? 'v-ok' : l.verdict === 'ผิด' ? 'v-bad' : 'v-warn'}">${l.verdict}${l.falseAlarm ? ' · แจ้งเตือนผิด' : ''}</td>
+      <td>${l.alert ? '🔔' : '—'}${l.detectMs !== null && l.exp.length ? ` ${Math.round(l.detectMs / 1000)} วิ` : ''}</td><td>${l.tests}/${l.full}</td></tr>`).join('')}</table>`;
+}
+
+function renderWalk() {
+  document.getElementById('tabs').innerHTML = SCEN.map((s, i) => `<button class="${tab === i ? 'on' : ''}" onclick="pickTab(${i})">${s.name}</button>`).join('');
+  if (tab === null) { document.getElementById('walk').innerHTML = '<p class="muted small">เลือกสถานการณ์ด้านบน หรือเล่นอิสระด้วยปุ่มในห้องแล็บ</p>'; return; }
+  const s = SCEN[tab];
+  document.getElementById('walk').innerHTML = `<p class="small">${s.desc}</p><ol class="steps">${s.steps.map(([label], i) =>
+    `<li class="${i < stepAt ? 'done' : i === stepAt ? 'next' : ''}"><span class="n">${i + 1}</span><button ${i === stepAt ? '' : 'disabled'} onclick="doStep(${i})">${label}</button></li>`).join('')}</ol>
+    ${stepAt >= s.steps.length ? '<p class="small" style="margin-top:8px">✓ จบสถานการณ์ — เล่นต่ออิสระได้ หรือเลือกแท็บอื่น</p>' : ''}`;
+}
+
+function render() {
+  renderWalk();
+  document.getElementById('faults').innerHTML = Object.entries(Lab.FAULTS).map(([k, f]) =>
+    `<div class="fault"><button class="${S.faults.has(k) ? 'on' : ''}" onclick="doAct(s => act.toggle(s, '${k}'))">${S.faults.has(k) ? 'เปิดอยู่' : 'ปิด'}</button><div><div>${f.label}</div><div class="how">${f.how}</div></div></div>`).join('');
+  const hp = document.getElementById('happened');
+  hp.className = 'happened' + (S.last.bad ? ' bad' : '');
+  hp.innerHTML = `<b>เกิดอะไรขึ้น:</b> ${S.last.text}${S.faults.size ? `<div class="muted small">เหตุที่เปิดอยู่ (ผู้ทดสอบรู้ ระบบไม่รู้): ${[...S.faults].map(f => Lab.FAULTS[f].label).join(', ')}</div>` : ''}`;
+  document.getElementById('dash').innerHTML = renderDash();
+  document.getElementById('score').innerHTML = renderScore();
+}
+
+// ---------------- 25-round benchmark ----------------
+function runBench() {
+  const SC = [['ปกติ', []], ['DNS ของ A เสีย', ['dnsA']], ['ปลายทางหนึ่งเสีย', ['siteXDown']], ['เส้นทางของ A มีปัญหา', ['routeA']], ['เส้นทางออกภายนอกร่วมเสีย', ['egress']]];
+  const all = [];
+  const rows = SC.map(([name, fs]) => {
+    const st = fresh();
+    if (fs.length) { act.round(st); act.round(st); fs.forEach(f => act.toggle(st, f)); }
+    const skip = st.log.length;
+    for (let i = 0; i < 5; i++) act.round(st);
+    const log = st.log.slice(skip);
+    all.push(...log);
+    const det = log.find(l => l.detectMs !== null && l.exp.length);
+    return `<tr><td>${name}</td><td>${keysLabel(Lab.expected(new Set(fs)))}</td><td class="v-ok">${log.filter(l => l.verdict === 'ถูก').length}/5</td>
+      <td>${log.filter(l => l.verdict === 'ผิด').length}</td><td>${log.filter(l => l.verdict === 'ข้อมูลไม่พอ').length}</td><td>${log.filter(l => l.falseAlarm).length}</td>
+      <td>${det ? `${Math.round(det.detectMs / 1000)} วิ (รอบที่ ${log.indexOf(det) + 1})` : fs.length ? 'ไม่แจ้งเตือน' : '—'}</td>
+      <td>${(log.reduce((a, l) => a + l.tests, 0) / 5).toFixed(1)} / ${log[0].full}</td><td class="muted small">${log.map(l => l.levels.join('+') || 'ปกติ').join(' → ')}</td></tr>`;
+  });
+  document.getElementById('bench').innerHTML = metricsHtml(all) + `<table><tr><th>สถานการณ์</th><th>คาดหวัง</th><th>ถูก</th><th>ผิด</th><th>ข้อมูลไม่พอ</th><th>แจ้งเตือนผิด</th><th>เวลาตรวจพบ (ถึงแจ้งเตือน)</th><th>การทดสอบเฉลี่ย/รอบ</th><th>ระดับหลักฐานรอบ 1→5</th></tr>${rows.join('')}</table>
+    <p class="muted small" style="margin-top:6px">รอบตรวจทุก 10 วินาที แจ้งเตือนเมื่อพบซ้ำ 2 รอบ → เวลาตรวจพบอยู่ราว 2 รอบ ต่ำกว่าเป้า 30 วินาที · บนสไลด์ให้ใส่เฉพาะตัวเลขที่วัดในแล็บจริง และระบุว่า "ทดลองในแล็บ 25 รอบ"</p>`;
+}
+
+render();
+</script>
+</body>
+</html>

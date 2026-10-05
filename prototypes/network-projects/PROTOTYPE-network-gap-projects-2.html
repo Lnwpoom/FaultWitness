@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — 10 โปรเจกต์เน็ตเวิร์กที่ยังไม่มีใครทำ (6–10)</title>
+<style>
+  :root { --bg:#fafaf9; --fg:#1c1917; --muted:#78716c; --line:#e7e5e4; --card:#fff; --accent:#0f766e; --accent-soft:#e6f4f1; --warn:#b45309; --warn-soft:#fffbeb; --bad:#b91c1c; --ok:#15803d; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1c1917; --fg:#f5f5f4; --muted:#a8a29e; --line:#3a3532; --card:#262220; --accent:#5eead4; --accent-soft:#163532; --warn:#fbbf24; --warn-soft:#3a2f12; --bad:#f87171; --ok:#4ade80; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif; }
+  main { max-width:920px; margin:0 auto; padding:32px 16px 80px; }
+  h1 { font-size:1.5rem; margin:0 0 4px; }
+  h2 { font-size:1.2rem; margin:24px 0 8px; }
+  h3 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:24px 0 8px; }
+  p { margin:0 0 8px; }
+  .banner { background:var(--warn-soft); border:1px solid var(--line); color:var(--warn); padding:8px 12px; border-radius:8px; font-size:.9rem; margin-bottom:20px; }
+  .muted { color:var(--muted); }
+  .question { background:var(--accent-soft); border-radius:8px; padding:12px 14px; }
+  .pitch { font-size:.9rem; color:var(--muted); border-left:3px solid var(--line); padding-left:12px; }
+  .gap { font-size:.9rem; border-left:3px solid var(--accent); padding-left:12px; }
+  nav.projects { display:flex; flex-wrap:wrap; gap:6px; margin:16px 0 0; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:8px; padding:6px 12px; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.on { background:var(--accent); border-color:var(--accent); color:var(--bg); }
+  button.next { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+  .tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:1px solid var(--line); margin-top:20px; padding-bottom:8px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; overflow-x:auto; }
+  .happened { margin-top:10px; padding:10px 14px; border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:4px; }
+  .happened.bad { border-color:var(--bad); }
+  table { border-collapse:collapse; width:100%; font-size:.92rem; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; }
+  .tag { display:inline-block; padding:0 8px; border-radius:999px; font-size:.8rem; border:1px solid var(--line); margin:1px 0; }
+  .ok { color:var(--ok); } .bad-t { color:var(--bad); } .warn-t { color:var(--warn); }
+  .row { display:flex; flex-wrap:wrap; gap:6px; }
+  ol.steps { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
+  ol.steps li { display:flex; gap:10px; align-items:center; }
+  ol.steps .n { width:1.6rem; color:var(--muted); text-align:right; }
+  .done button { text-decoration:line-through; }
+  ul.log, ul.plain { margin:0; padding-left:18px; font-size:.9rem; }
+  ul.log { color:var(--muted); }
+  code { background:var(--accent-soft); padding:0 4px; border-radius:4px; }
+  table.tl { width:auto; border-collapse:separate; border-spacing:1px; font-size:.7rem; }
+  table.tl td, table.tl th { padding:0; width:12px; height:18px; border:0; text-align:center; }
+  table.tl th { font-weight:400; color:var(--muted); text-align:right; padding-right:6px; width:auto; white-space:nowrap; }
+  .c-win { background:var(--bad); opacity:.75; } .c-bel { background:var(--warn); opacity:.6; }
+  .c-ok { background:var(--ok); opacity:.75; } .c-hit { background:var(--bad); } .c-dup { background:var(--warn); }
+  .c-none { background:var(--line); }
+  .cells td { text-align:center; }
+</style>
+</head>
+<body>
+<main>
+  <h1>10 โปรเจกต์เน็ตเวิร์กที่โปรแกรมทั่วไปยังไม่มี · ตอนที่ 2 (โปรเจกต์ 6–10)</h1>
+  <div class="banner">⚠️ PROTOTYPE — โค้ดทิ้งได้ ไม่ใช่ของจริง · คำถาม: "แต่ละไอเดียมีตรรกะที่ใช้ได้จริงไหม และตอบโจทย์ที่เครื่องมือเน็ตเวิร์กทั่วไปในปัจจุบันยังทำไม่ได้หรือเปล่า" · เฉพาะ <code>&lt;script id="logic"&gt;</code> ที่ตั้งใจให้ยกไปใช้ต่อ · ไม่ซ้ำกับ 15 โปรเจกต์ในไฟล์ PROTOTYPE อื่นในโฟลเดอร์นี้ · โปรเจกต์ 1–5 อยู่ในไฟล์ <code>PROTOTYPE-network-gap-projects-1.html</code></div>
+  <p class="muted">เลือกโปรเจกต์ → ลองกดปุ่มเล่นอิสระ หรือเปิดแท็บ "สถานการณ์" แล้วกดไปตามลำดับ (ทุกแท็บเริ่มจากสถานะตั้งต้นเดียวกัน) · กรอบ "ช่องว่างที่ยังไม่มีใครทำ" บอกว่าเครื่องมือปัจจุบันขาดอะไร</p>
+  <nav class="projects" id="projects"></nav>
+  <section id="project"></section>
+</main>
+
+<!-- ============================================================
+     LOGIC — pure, no DOM. Liftable into the real codebase later.
+     ============================================================ -->
+<script id="logic">
+const msg = (text, bad = false) => ({ text, bad });
+
+// ---------- 6. LEO satellite (Starlink-style) reconfiguration-aware sender ----------
+const Leo = (() => {
+  const PERIOD = 15, DEFAULT_PHASE = 12;              // reconfiguration every 15 s at :12 :27 :42 :57
+  const windows = phase => [0, 1, 2, 3].map(i => (((phase + i * PERIOD) % 60) + 60) % 60);
+  const JOBS = [
+    ...[2, 7, 12, 17, 22, 27, 32, 37, 42, 47, 52, 57].map(t => ({ kind: 'kf', name: 'คีย์เฟรมวิดีโอ', start: t, dur: 1, flex: 1 })),
+    ...[10, 25, 40, 55].map(t => ({ kind: 'iot', name: 'ส่งข้อมูลเซนเซอร์', start: t, dur: 3, flex: 4 })),
+    { kind: 'cmd', name: 'คำสั่งควบคุมโดรน', start: 27, dur: 1, flex: 0 },
+  ];
+  const KIND = { kf: 'คีย์เฟรมวิดีโอ (เลื่อนได้ 1 วิ)', iot: 'ข้อมูลเซนเซอร์ 3 วิ (เลื่อนได้ 4 วิ)', cmd: 'คำสั่งควบคุมโดรน (เลื่อนไม่ได้)' };
+  const covers = (start, dur, set) => { for (let i = 0; i < dur; i++) if (set.includes((start + i) % 60)) return true; return false; };
+  const believedPhase = s => s.source === 'measured' ? s.estimate : DEFAULT_PHASE - s.clockErr;
+  // Place each job: naive sends at once; aware delays within flex to dodge believed windows, duplicates unmovable ones.
+  function schedule(s) {
+    const truth = windows(s.phase), bel = windows(believedPhase(s));
+    return JOBS.map(j => {
+      let d = 0, dup = false;
+      if (s.mode === 'aware') {
+        const free = [...Array(j.flex + 1).keys()].find(x => !covers(j.start + x, j.dur, bel));
+        if (free !== undefined) d = free; else if (j.flex === 0) dup = true;
+      }
+      const hit = covers(j.start + d, j.dur, truth);
+      return { ...j, at: j.start + d, delay: d, dup, outcome: hit ? (dup ? 'saved' : 'hit') : 'ok' };
+    });
+  }
+  // Ping once per second for a minute; reconfigurations show as RTT spikes, plus one unrelated spike.
+  const rttSeries = s => [...Array(60).keys()].map(t => windows(s.phase).includes(t) ? 140 : t === 33 ? 160 : 35 + (t * 7) % 9);
+  function estimatePhase(series) {
+    const spikes = series.map((v, t) => v > 100 ? t : -1).filter(t => t >= 0);
+    let best = 0, bestN = -1;
+    for (let k = 0; k < PERIOD; k++) { const n = spikes.filter(t => t % PERIOD === k).length; if (n > bestN) { best = k; bestN = n; } }
+    return best;
+  }
+  const init = () => ({ phase: DEFAULT_PHASE, clockErr: 0, source: 'assumed', estimate: null, mode: 'naive', result: null,
+    last: msg('จานดาวเทียมวงโคจรต่ำสลับดาวเทียมทุก 15 วินาที (ที่วินาที :12 :27 :42 :57 ตามงานวัดผลจริง) ช่วงนั้นแพ็กเก็ตหายและ RTT พุ่ง · งานในหนึ่งนาที: คีย์เฟรมวิดีโอ 12 ชิ้น, ข้อมูลเซนเซอร์ 4 ชุด, คำสั่งควบคุมโดรน 1 คำสั่ง') });
+  function run(s) {
+    const r = schedule(s), hits = r.filter(j => j.outcome === 'hit').length, saved = r.filter(j => j.outcome === 'saved').length;
+    const moved = r.filter(j => j.delay).length;
+    return { ...s, result: r, last: msg(`ส่งครบ 1 นาที: โดนช่วงสลับดาวเทียม ${hits} งาน${saved ? ` · ส่งซ้ำรอดได้ ${saved}` : ''}${moved ? ` · เลื่อนเวลา ${moved} งาน` : ''}`, hits > 0) };
+  }
+  const setMode = (s, mode) => ({ ...s, mode, result: null, last: msg(mode === 'aware' ? 'ใช้ตัวจัดเวลาที่รู้จังหวะสลับดาวเทียม' : 'ส่งทันทีที่งานพร้อม (แบบทั่วไป)') });
+  const clock = s => ({ ...s, clockErr: 3, result: null, last: msg('นาฬิกาของอุปกรณ์เดินเร็วไป 3 วินาที (ไม่มี NTP) — ตารางเวลาที่ "รู้" จึงเลื่อนไปจากความจริง', true) });
+  const measure = s => { const est = estimatePhase(rttSeries(s)); return { ...s, source: 'measured', estimate: est, result: null, last: msg(`วัด RTT ทุกวินาทีครบ 1 นาที เจอ RTT พุ่งที่วินาที ${rttSeries(s).map((v, t) => v > 100 ? t : -1).filter(t => t >= 0).join(', ')} → จังหวะที่ประมาณได้: วินาทีที่ ${windows(est).join(', ')} (ค่าโดดที่วินาที 33 ไม่หลอก เพราะไม่ซ้ำทุก 15 วิ)`) }; };
+  const shift = s => ({ ...s, phase: (s.phase + 10) % PERIOD, result: null, last: msg('ผู้ให้บริการอัปเดตระบบ จังหวะสลับดาวเทียมเลื่อนไป 10 วินาที — ค่าที่เคยวัดไว้ตกยุคแล้ว', true) });
+  return { windows, believedPhase, KIND, init, run, setMode, clock, measure, shift, rttSeries };
+})();
+
+// ---------- 7. Energy-saving link sleep that keeps N-1 survivability ----------
+const Green = (() => {
+  const LINKS = [
+    { id: 'GW-C2', a: 'GW', b: 'C2', w: 15 }, { id: 'GW-B1', a: 'GW', b: 'B1', w: 25 }, { id: 'C2-B1', a: 'C2', b: 'B1', w: 25 },
+    { id: 'GW-B2', a: 'GW', b: 'B2', w: 25 }, { id: 'C2-B2', a: 'C2', b: 'B2', w: 25 }, { id: 'GW-B3', a: 'GW', b: 'B3', w: 25 },
+    { id: 'C2-B3', a: 'C2', b: 'B3', w: 25 }, { id: 'B3-B4', a: 'B3', b: 'B4', w: 10 }, { id: 'C2-B4', a: 'C2', b: 'B4', w: 30 },
+  ];
+  const CAP = 10, HEADROOM = 0.7;
+  const BUILDINGS = { B1: 'ตึกเรียนรวม', B2: 'หอสมุด', B3: 'โรงพยาบาล', B4: 'หอพัก' };
+  const DEMAND = { night: { B1: 0.5, B2: 0.5, B3: 1, B4: 0.5 }, day: { B1: 6, B2: 6, B3: 5, B4: 4 } };
+  const ALL_W = LINKS.reduce((a, l) => a + l.w, 0);
+  const init = () => ({ period: 'night', n1: false, asleep: [], waking: [], failed: [], proactive: false,
+    last: msg('เครือข่ายวิทยาเขต: คอร์ GW (ทางออกเน็ต) และ C2 กับ 4 อาคาร · ลิงก์ทั้งหมดเปิดอยู่ตลอด 24 ชม. กินไฟรวม ' + ALL_W + ' วัตต์ แม้กลางคืนจะแทบไม่มีคนใช้') });
+  const active = (s, extraOff = []) => LINKS.filter(l => !s.asleep.includes(l.id) && !s.waking.includes(l.id) && !s.failed.includes(l.id) && !extraOff.includes(l.id));
+  function path(links, from, to, resid, need) {
+    const prev = { [from]: null }, q = [from];
+    while (q.length) {
+      const x = q.shift();
+      if (x === to) break;
+      for (const l of links) {
+        const y = l.a === x ? l.b : l.b === x ? l.a : null;
+        if (y && !(y in prev) && resid[l.id] >= need) { prev[y] = l; q.push(y); }
+      }
+    }
+    if (!(to in prev)) return null;
+    const out = []; for (let x = to; prev[x]; x = prev[x].a === x ? prev[x].b : prev[x].a) out.push(prev[x]);
+    return out;
+  }
+  // Route each building's demand to GW on the shortest path with room (largest first). Pure.
+  function route(links, demand, capFactor = 1) {
+    const resid = Object.fromEntries(links.map(l => [l.id, CAP * capFactor])), load = Object.fromEntries(links.map(l => [l.id, 0]));
+    let dropped = 0;
+    const cut = [];
+    for (const [b, d] of Object.entries(demand).sort((x, y) => y[1] - x[1])) {
+      const p = path(links, b, 'GW', resid, d);
+      if (!p) { dropped += d; if (!path(links, b, 'GW', Object.fromEntries(links.map(l => [l.id, Infinity])), 0)) cut.push(b); continue; }
+      for (const l of p) { resid[l.id] -= d; load[l.id] += d; }
+    }
+    return { load, dropped, cut };
+  }
+  const connectedAll = links => Object.keys(BUILDINGS).every(b => path(links, b, 'GW', Object.fromEntries(links.map(l => [l.id, 1])), 0));
+  const survivesAnyOne = links => links.every(l => connectedAll(links.filter(x => x !== l)));
+  const watts = s => LINKS.filter(l => !s.asleep.includes(l.id)).reduce((a, l) => a + l.w, 0);
+  function optimize(s) {
+    const demand = DEMAND[s.period];
+    let asleep = [...s.asleep];
+    for (const l of [...LINKS].sort((x, y) => y.w - x.w)) {
+      if (asleep.includes(l.id) || s.failed.includes(l.id)) continue;
+      const rest = active({ ...s, asleep }, [l.id]);
+      if (route(rest, demand, HEADROOM).dropped > 0) continue;
+      if (s.n1 && !survivesAnyOne(rest)) continue;
+      asleep.push(l.id);
+    }
+    const n = { ...s, asleep, waking: [] };
+    return { ...n, last: msg(`ปิดลิงก์ ${asleep.length} เส้น (${asleep.join(', ') || '—'}) · เหลือใช้ไฟ ${watts(n)} จาก ${ALL_W} วัตต์ (ประหยัด ${Math.round(100 * (1 - watts(n) / ALL_W))}%)${s.n1 ? ' · ยังทนลิงก์ขาด 1 เส้นได้ทุกกรณี' : ''}`) };
+  }
+  function failWorst(s) {
+    const links = active(s);
+    let worst = null, worstN = -1;
+    for (const l of links) {
+      const rest = links.filter(x => x !== l);
+      const n = Object.keys(BUILDINGS).filter(b => !path(rest, b, 'GW', Object.fromEntries(rest.map(x => [x.id, 1])), 0)).length;
+      if (n > worstN) { worst = l; worstN = n; }
+    }
+    const n = { ...s, failed: [...s.failed, worst.id] };
+    const r = route(active(n), DEMAND[s.period]);
+    return { ...n, last: msg(`ลิงก์ ${worst.id} ขาด (กรณีแย่ที่สุด) → ${r.cut.length ? 'อาคารที่หลุด: ' + r.cut.map(b => BUILDINGS[b]).join(', ') + ' — ต้องรอปลุกลิงก์ที่หลับอยู่' : 'ทุกอาคารยังต่อได้ ✅'}`, r.cut.length > 0) };
+  }
+  function morning(s) {
+    if (s.proactive) return { ...s, period: 'day', asleep: [], waking: [], last: msg('07:45 ตามตารางปลุกลิงก์ทั้งหมดล่วงหน้า → 08:00 คนเข้าเรียน รับโหลดได้ทันที') };
+    const n = { ...s, period: 'day', waking: [...s.asleep], asleep: [] };
+    const r = route(active(n), DEMAND.day);
+    return { ...n, last: msg(`08:00 คนเข้าเรียน โหลดพุ่ง → เพิ่งเริ่มปลุกลิงก์ที่หลับ (ใช้เวลาราว 2 นาทีกว่าลิงก์และ routing จะพร้อม) · ระหว่างนี้รับไม่ไหว ${r.dropped} Gb/s`, r.dropped > 0) };
+  }
+  const tick = s => ({ ...s, waking: [], last: msg(s.waking.length ? `ลิงก์ ${s.waking.join(', ')} ตื่นแล้ว` : 'ผ่านไป 2 นาที') });
+  const repair = s => ({ ...s, failed: [], last: msg('ซ่อมลิงก์ที่ขาดแล้ว') });
+  const set = (s, patch, text) => ({ ...s, ...patch, last: msg(text) });
+  return { LINKS, CAP, BUILDINGS, DEMAND, ALL_W, init, active, route, survivesAnyOne, watts, optimize, failWorst, morning, tick, repair, set };
+})();
+
+// ---------- 8. ASPA route-leak / forged-path impact preview ----------
+const Aspa = (() => {
+  const AS = {
+    64500: { name: 'CDN (เจ้าของคอนเทนต์)', providers: [64496] },
+    64496: { name: 'Tier-1 A', providers: [] },
+    64497: { name: 'Tier-1 B', providers: [] },
+    64501: { name: 'ISP-A', providers: [64496] },
+    64502: { name: 'ISP-B (เรา — ผู้ตรวจ)', providers: [64497] },
+    64503: { name: 'ISP-C (ผู้ให้บริการใหม่ของ CDN)', providers: [64497] },
+    64510: { name: 'บริษัทลูกค้า (ต่อทั้ง ISP-A และ ISP-B)', providers: [64501, 64502] },
+    64666: { name: 'ผู้โจมตี (ลูกค้าของ ISP-B)', providers: [64502] },
+  };
+  const PUBLISHERS = [64500, 64496, 64497, 64501, 64510];
+  const ROUTES = [
+    { id: 'good', label: 'เส้นทางปกติจาก Tier-1 B', from: 'provider', path: [64497, 64496, 64500], origin: 64500 },
+    { id: 'leak', label: 'ลูกค้ารั่วเส้นทางจาก ISP-A มาให้เรา', from: 'customer', path: [64510, 64501, 64496, 64500], origin: 64500 },
+    { id: 'forged', label: 'ผู้โจมตีปลอมว่าต่อกับ CDN ตรง', from: 'customer', path: [64666, 64500], origin: 64500 },
+    { id: 'own', label: 'prefix ของลูกค้าเอง', from: 'customer', path: [64510], origin: 64510 },
+    { id: 'newp', label: 'เส้นทางใหม่ของ CDN ผ่าน ISP-C', from: 'provider', path: [64497, 64503, 64500], origin: 64500, needs: 'newProvider' },
+  ];
+  const ROA = { 64500: true, 64510: true };            // both origins hold valid ROAs: ROV says Valid for all
+  const providers = (s, a) => a === 64500 && s.cdnUpdated ? [...AS[a].providers, 64503] : AS[a].providers;
+  // hop(a,b): is b attested as a provider of a?  (draft-ietf-sidrops-aspa-verification)
+  const hop = (s, a, b) => !s.published.includes(a) ? 'none' : providers(s, a).includes(b) ? 'p' : 'notp';
+  function verify(s, route) {
+    const seq = [...new Set(route.path)].reverse();      // AS(1) = origin … AS(N) = neighbour
+    const N = seq.length, up = [], down = [];
+    for (let i = 0; i < N - 1; i++) up.push(hop(s, seq[i], seq[i + 1]));
+    for (let j = N - 1; j > 0; j--) down.push(hop(s, seq[j], seq[j - 1]));
+    if (route.from === 'customer') {
+      if (N === 1) return { verdict: 'valid', up, down: [] };
+      return { verdict: up.includes('notp') ? 'invalid' : up.includes('none') ? 'unknown' : 'valid', up, down: [] };
+    }
+    if (N <= 2) return { verdict: 'valid', up, down };
+    const ramp = (hops, stop) => { const i = hops.findIndex(stop); return i === -1 ? N : i + 1; };
+    const maxUp = ramp(up, h => h === 'notp'), minUp = ramp(up, h => h !== 'p');
+    const maxDown = ramp(down, h => h === 'notp'), minDown = ramp(down, h => h !== 'p');
+    const verdict = maxUp + maxDown < N ? 'invalid' : minUp + minDown < N ? 'unknown' : 'valid';
+    return { verdict, up, down, maxUp, maxDown, minUp, minDown };
+  }
+  const routes = s => ROUTES.filter(r => !r.needs || s[r.needs]);
+  const init = () => ({ published: [], newProvider: false, cdnUpdated: false,
+    last: msg('เราคือ ISP-B ตรวจเส้นทาง BGP ที่ได้รับด้วย ASPA (แต่ละ AS ประกาศใน RPKI ว่าใครคือผู้ให้บริการต้นทางของตน) · ตอนนี้ยังไม่มีใครประกาศ ASPA') });
+  const summary = s => routes(s).map(r => `${r.label}: ${verify(s, r).verdict}`).join(' · ');
+  const publish = (s, a) => { const n = { ...s, published: [...new Set([...s.published, a])] }; return { ...n, last: msg(`${AS[a].name} ประกาศ ASPA: ผู้ให้บริการ = {${providers(n, a).join(', ') || 'ไม่มี (AS0)'}} · ${summary(n)}`) }; };
+  const publishAll = s => { const n = { ...s, published: [...PUBLISHERS] }; return { ...n, last: msg(`ทุก AS ที่สุจริตประกาศ ASPA · ${summary(n)}`) }; };
+  const newProvider = s => { const n = { ...s, newProvider: true }; const v = verify(n, ROUTES[4]).verdict; return { ...n, last: msg(`CDN เปิดใช้ ISP-C เป็นผู้ให้บริการรายใหม่ แต่ยังไม่ได้แก้ ASPA → เส้นทางใหม่ผลตรวจ: ${v}${v === 'invalid' ? ' — ถูกทิ้งทั้งที่ถูกต้อง (CDN ทำตัวเองล่ม)' : ''}`, v === 'invalid') }; };
+  const cdnUpdate = s => { const n = { ...s, cdnUpdated: true }; return { ...n, last: msg(`CDN เพิ่ม ISP-C ใน ASPA → ${summary(n)}`) }; };
+  return { AS, PUBLISHERS, ROA, init, routes, verify, publish, publishAll, newProvider, cdnUpdate };
+})();
+
+// ---------- 9. Microsegmentation policy learner with "have we learned enough?" ----------
+const Microseg = (() => {
+  const ROLE = { 'web-1': 'web', 'web-2': 'web', 'app-1': 'app', 'app-2': 'app', 'app-3': 'app', 'db-1': 'db', backup: 'backup', mon: 'monitor', billing: 'batch' };
+  function flowsOn(day, s) {
+    const f = [['web-1', 'app-1', 8080], ['web-2', 'app-2', 8080], ['app-1', 'db-1', 5432], ['app-2', 'db-1', 5432],
+      ...['web-1', 'web-2', 'app-1', 'app-2', 'db-1'].map(h => ['mon', h, 9100])].map(x => ({ src: x[0], dst: x[1], port: x[2], legit: true, why: 'ทุกวัน' }));
+    if (day % 7 === 6) f.push({ src: 'backup', dst: 'db-1', port: 5432, legit: true, why: 'แบ็กอัปทุกวันอาทิตย์' });
+    if (day === 20) f.push({ src: 'billing', dst: 'db-1', port: 5432, legit: true, why: 'ปิดยอดสิ้นเดือน' });
+    if (s.scaled) f.push(...[['web-1', 'app-3', 8080], ['app-3', 'db-1', 5432], ['mon', 'app-3', 9100]].map(x => ({ src: x[0], dst: x[1], port: x[2], legit: true, why: 'เครื่องใหม่จาก autoscale' })));
+    if (s.compromised) f.push({ src: 'web-1', dst: 'db-1', port: 5432, legit: false, why: 'ผู้บุกรุกจาก web-1 ดึงฐานข้อมูลตรง' }, { src: 'web-1', dst: 'app-2', port: 22, legit: false, why: 'ผู้บุกรุกลอง SSH ข้ามเครื่อง' });
+    return f;
+  }
+  const key = (f, gran) => gran === 'ip' ? `${f.src} → ${f.dst}:${f.port}` : `${ROLE[f.src]} → ${ROLE[f.dst]}:${f.port}`;
+  const init = () => ({ day: 0, mode: 'learn', gran: 'role', learned: [], scaled: false, compromised: false, quietDays: 0, wouldDeny: [], outages: [], blocked: [], leaked: [], poisoned: [],
+    last: msg('ระบบเรียนรู้ว่าใครคุยกับใครแล้วสร้างกฎ "อนุญาตเฉพาะที่เคยเห็น" (zero trust) · เริ่มในโหมดเรียนรู้ วันที่ 1 คือวันจันทร์') });
+  const allowed = (s, f) => s.learned.some(l => key(l, s.gran) === key(f, s.gran));
+  function day(s) {
+    const fl = flowsOn(s.day, s);
+    let n = { ...s, day: s.day + 1, learned: [...s.learned], wouldDeny: [...s.wouldDeny], outages: [...s.outages], blocked: [...s.blocked], leaked: [...s.leaked], poisoned: [...s.poisoned] };
+    const notes = [], flow = f => `${f.src} → ${f.dst}:${f.port} (${f.why})`, label = f => `วัน ${s.day + 1}: ${flow(f)}`;
+    let fresh = 0;
+    for (const f of fl) {
+      const ok = allowed(n, f);
+      if (n.mode === 'learn') {
+        if (!n.learned.some(l => key(l, 'ip') === key(f, 'ip'))) { n.learned.push(f); if (!f.legit) { n.poisoned.push(label(f)); notes.push(`⚠️ เรียนรู้ทราฟฟิกของผู้บุกรุกเป็น "ปกติ": ${flow(f)}`); } }
+      } else if (!ok) {
+        if (n.mode === 'audit') { n.wouldDeny.push({ ...f, label: label(f) }); fresh++; }
+        else if (f.legit) { n.outages.push(label(f)); notes.push(`❌ บล็อกงานจริง: ${flow(f)}`); }
+        else { n.blocked.push(label(f)); notes.push(`🛡 บล็อกผู้บุกรุก: ${flow(f)}`); }
+      } else if (!f.legit && n.mode !== 'learn') { n.leaked.push(label(f)); notes.push(`⚠️ ผู้บุกรุกผ่านได้: ${flow(f)}`); }
+    }
+    n.quietDays = n.mode === 'audit' ? (fresh ? 0 : s.quietDays + 1) : s.quietDays;
+    if (n.mode === 'audit' && fresh) notes.push(`audit เจอ flow ใหม่ ${fresh} รายการ (ไม่บล็อก แค่จด)`);
+    const bad = notes.some(x => x.startsWith('❌') || x.startsWith('⚠️'));
+    return { ...n, last: msg(`วันที่ ${s.day + 1} (${['จันทร์', 'อังคาร', 'พุธ', 'พฤหัส', 'ศุกร์', 'เสาร์', 'อาทิตย์'][s.day % 7]}) ${n.mode === 'learn' ? 'เรียนรู้' : n.mode === 'audit' ? 'audit' : 'บังคับใช้'}: ${notes.join(' · ') || 'ไม่มีอะไรผิดปกติ'}`, bad) };
+  }
+  const days = (s, k) => { let x = s; const notes = []; for (let i = 0; i < k; i++) { x = day(x); if (x.last.bad || x.last.text.includes('🛡') || x.last.text.includes('audit เจอ')) notes.push(x.last.text); } return { ...x, last: msg(notes.length ? notes.join(' | ') : `ผ่านไป ${k} วัน ไม่มีอะไรผิดปกติ (ถึงวันที่ ${x.day})`, notes.some(t => t.includes('❌') || t.includes('⚠️'))) }; };
+  const acceptAll = s => ({ ...s, learned: [...s.learned, ...s.wouldDeny], wouldDeny: [], poisoned: [...s.poisoned, ...s.wouldDeny.filter(f => !f.legit).map(f => f.label)],
+    last: msg(`รับ flow จาก audit ${s.wouldDeny.length} รายการเป็นกฎ${s.wouldDeny.some(f => !f.legit) ? ' — ⚠️ รวมทราฟฟิกผู้บุกรุกด้วย' : ''}`, s.wouldDeny.some(f => !f.legit)) });
+  const rules = s => [...new Set(s.learned.map(f => key(f, s.gran)))];
+  const set = (s, patch, text) => ({ ...s, ...patch, last: msg(text) });
+  return { ROLE, init, day, days, acceptAll, rules, set };
+})();
+
+// ---------- 10. IPv6-mostly network readiness by device ----------
+const V6 = (() => {
+  const DEV = {
+    phone: { name: 'มือถือรุ่นใหม่', v6: true, opt108: true, clat: true },
+    laptopNew: { name: 'โน้ตบุ๊ก OS ใหม่', v6: true, opt108: true, clat: true },
+    laptopOld: { name: 'โน้ตบุ๊ก OS เก่า', v6: true, opt108: false, clat: false },
+    printer: { name: 'เครื่องพิมพ์', v6: false, opt108: false, clat: false },
+    cam: { name: 'กล้อง IoT ราคาถูก', v6: false, opt108: false, clat: false },
+  };
+  const DEST = { dual: 'เว็บที่มี IPv6', v4name: 'เว็บ IPv4 อย่างเดียว', literal: 'แอปที่ฝังเลข IPv4', lanPrinter: 'สั่งพิมพ์ในวง LAN' };
+  const init = () => ({ ipv4: true, opt108: false, dns64: false, nat64: false, pref64: false, nsp: false, pubDns: false,
+    last: msg('เครือข่ายนักศึกษาแบบ dual-stack ทุกอุปกรณ์ได้ IPv4 จาก DHCP · IPv4 เต็มแล้ว จึงอยากย้ายไป IPv6 — ทดลองก่อนว่าอะไรจะพัง') });
+  const hasV4 = (s, d) => s.ipv4 && !(s.opt108 && d.opt108);
+  const dns64For = (s, k) => s.dns64 && !(s.pubDns && k === 'laptopNew');
+  const clatOn = (s, k) => { const d = DEV[k]; return d.clat && !hasV4(s, d) && s.nat64 && (s.pref64 || dns64For(s, k)); };
+  // Can device k reach destination t, and how? Pure.
+  function reach(s, k, t) {
+    const d = DEV[k], v4 = hasV4(s, d), clat = clatOn(s, k), dns64 = dns64For(s, k);
+    if (!d.v6 && !v4) return { ok: false, via: 'ไม่มีที่อยู่เลย (ไม่รองรับ IPv6 และไม่มี IPv4)' };
+    if (t === 'dual') return d.v6 ? { ok: true, via: 'IPv6 ตรง' } : { ok: true, via: 'IPv4' };
+    if (t === 'lanPrinter') {
+      if (!hasV4(s, DEV.printer)) return { ok: false, via: 'เครื่องพิมพ์ไม่มีที่อยู่แล้ว' };
+      if (v4) return { ok: true, via: 'IPv4 ใน LAN' };
+      if (s.nat64 && (dns64 || clat)) return s.nsp ? { ok: true, via: 'NAT64 (prefix ของเครือข่ายเอง)' } : { ok: false, via: 'prefix 64:ff9b::/96 ห้ามแปลไปที่อยู่ส่วนตัว (RFC 6052)' };
+      return { ok: false, via: 'ไม่มีทางแปล' };
+    }
+    if (v4) return { ok: true, via: 'IPv4 (NAT44)' };
+    if (t === 'v4name' && dns64) return s.nat64 ? { ok: true, via: 'DNS64 + NAT64' } : { ok: false, via: 'DNS64 สร้างที่อยู่ปลอมแต่ไม่มี NAT64 รับ → หลุมดำ' };
+    if (clat) return { ok: true, via: 'CLAT (464XLAT)' };
+    return { ok: false, via: t === 'literal' ? 'ไม่มี CLAT · DNS64 ช่วยไม่ได้เพราะแอปไม่ได้ถามชื่อ' : 'DNS ไม่ได้สร้าง AAAA ให้ และไม่มี CLAT' };
+  }
+  const leases = s => Object.values(DEV).filter(d => hasV4(s, d)).length;
+  const broken = s => Object.keys(DEV).flatMap(k => Object.keys(DEST).filter(t => !reach(s, k, t).ok).map(t => `${DEV[k].name} → ${DEST[t]}`));
+  const set = (s, patch, text) => { const n = { ...s, ...patch }; const b = broken(n); return { ...n, last: msg(`${text} · ใช้ IPv4 ${leases(n)}/5 เครื่อง · พัง ${b.length} กรณี`, b.length > 0) }; };
+  return { DEV, DEST, init, reach, hasV4, clatOn, leases, broken, set };
+})();
+</script>
+
+<!-- ============================================================
+     PAGE — throwaway shell over the logic above.
+     ============================================================ -->
+<script>
+const proj = [];
+const tag = (cls, text) => `<span class="tag ${cls}">${text}</span>`;
+
+// ---- 6 LEO ----
+proj.push({
+  title: '6 · ส่งข้อมูลหลบจังหวะสลับดาวเทียม',
+  question: 'อินเทอร์เน็ตดาวเทียมวงโคจรต่ำสะดุดเป็นจังหวะทุก 15 วินาที ถ้าแอปรู้จังหวะนี้แล้วเลื่อนงานที่เลื่อนได้หลบ จะลดการสะดุดได้แค่ไหน? และจะเกิดอะไรขึ้นถ้าจังหวะที่รู้ผิด?',
+  gap: 'ช่องว่างที่ยังไม่มีใครทำ: TCP, วิดีโอคอล และ IoT มองการสะดุดแบบนี้เป็น "เน็ตไม่ดีแบบสุ่ม" แล้วลดความเร็วหรือส่งซ้ำ · ยังไม่มีไลบรารีหรือ proxy ทั่วไปที่เรียนรู้จังหวะสลับดาวเทียมจาก RTT แล้วจัดเวลาส่งให้หลบ',
+  pitch: 'ใช้ได้จริงตอนนี้: อินเทอร์เน็ตดาวเทียมใช้กันมากขึ้นในพื้นที่ห่างไกล เรือประมง ฟาร์ม และงานกู้ภัย · ต่อยอด: ทำเป็น proxy/ไลบรารีที่วัด RTT ต่อเนื่องหาเฟส, ใช้กับ WebRTC หรือ MQTT, วัดผลบนจานจริงเทียบกับส่งปกติ',
+  init: Leo.init,
+  actions: {
+    naive: { label: '📤 ส่งทันที (แบบทั่วไป)', run: s => Leo.setMode(s, 'naive') },
+    aware: { label: '🛰 ใช้ตัวจัดเวลาที่รู้จังหวะ', run: s => Leo.setMode(s, 'aware') },
+    run: { label: '▶ ส่งงานของ 1 นาที', run: Leo.run },
+    clock: { label: '⏰ นาฬิกาเครื่องเพี้ยน 3 วิ', run: Leo.clock },
+    measure: { label: '📈 วัด RTT 1 นาทีเพื่อหาจังหวะ', run: Leo.measure },
+    shift: { label: '🔄 ผู้ให้บริการเปลี่ยนจังหวะ', run: Leo.shift },
+  },
+  view: s => {
+    const truth = Leo.windows(s.phase), bel = Leo.windows(Leo.believedPhase(s));
+    const cells = fn => [...Array(60).keys()].map(t => `<td class="${fn(t)}" title="วินาที ${t}"></td>`).join('');
+    const occ = (kind, t) => {
+      if (!s.result) return 'c-none';
+      const j = s.result.find(x => x.kind === kind && t >= x.at && t < x.at + x.dur);
+      return !j ? '' : j.outcome === 'hit' ? 'c-hit' : j.outcome === 'saved' ? 'c-dup' : 'c-ok';
+    };
+    const r = s.result;
+    return `<p>ตัวส่ง: <b>${s.mode === 'aware' ? 'รู้จังหวะ' : 'ส่งทันที'}</b> · จังหวะจริง: วินาที ${truth.join(', ')} · ${s.mode === 'aware' ? `จังหวะที่ตัวส่งเชื่อ: วินาที ${bel.join(', ')} (${s.source === 'measured' ? 'จากการวัด' : 'จากตารางสาธารณะ + นาฬิกาเครื่อง'})` : 'ไม่สนจังหวะ'}</p>` +
+      `<table class="tl"><tr><th>วินาที</th>${[...Array(60).keys()].map(t => `<td>${t % 10 === 0 ? t : ''}</td>`).join('')}</tr>` +
+      `<tr><th>สลับดาวเทียมจริง</th>${cells(t => truth.includes(t) ? 'c-win' : '')}</tr>` +
+      (s.mode === 'aware' ? `<tr><th>ตัวส่งคิดว่า</th>${cells(t => bel.includes(t) ? 'c-bel' : '')}</tr>` : '') +
+      ['kf', 'iot', 'cmd'].map(k => `<tr><th>${Leo.KIND[k]}</th>${cells(t => occ(k, t))}</tr>`).join('') + '</table>' +
+      '<p class="muted" style="margin-top:6px">เขียว = ส่งสำเร็จ · แดง = โดนช่วงสลับ (หาย/ช้า) · ส้ม = ส่งซ้ำเผื่อแล้วรอด</p>' +
+      (r ? `<table style="margin-top:8px"><tr><th>โดนช่วงสลับ</th><td class="${r.some(j => j.outcome === 'hit') ? 'bad-t' : 'ok'}">${r.filter(j => j.outcome === 'hit').length} / ${r.length} งาน</td><th>เลื่อนเวลา</th><td>${r.filter(j => j.delay).length} งาน (รวม ${r.reduce((a, j) => a + j.delay, 0)} วิ)</td><th>ส่งซ้ำเผื่อ</th><td>${r.filter(j => j.dup).length}</td></tr></table>` : '<p class="muted">กด "ส่งงานของ 1 นาที" เพื่อดูผล</p>');
+  },
+  scenarios: [
+    { title: 'ส่งแบบทั่วไป', desc: 'ส่งทันทีที่พร้อม — คีย์เฟรม 4 ชิ้น ข้อมูลเซนเซอร์ทุกชุด และคำสั่งโดรนตกช่วงสลับพอดี', steps: ['run'] },
+    { title: 'รู้จังหวะ', desc: 'เลื่อนคีย์เฟรม 1 วิ เลื่อนเซนเซอร์ 3 วิ ส่วนคำสั่งโดรนที่เลื่อนไม่ได้ให้ส่งซ้ำเผื่อ', steps: ['aware', 'run'] },
+    { title: 'นาฬิกาเพี้ยน', desc: 'ใช้ตารางสาธารณะแต่นาฬิกาเครื่องเร็วไป 3 วิ — หลบผิดที่ ผลแย่พอๆ กับไม่หลบ จนกว่าจะวัดจังหวะจากเครือข่ายจริง', steps: ['aware', 'clock', 'run', 'measure', 'run'] },
+    { title: 'จังหวะเปลี่ยน', desc: 'วัดไว้แล้วใช้ได้ดี จนผู้ให้บริการเปลี่ยนระบบ — ค่าที่วัดไว้ตกยุค ต้องวัดซ้ำเป็นระยะ', steps: ['aware', 'measure', 'run', 'shift', 'run', 'measure', 'run'] },
+  ],
+});
+
+// ---- 7 Green ----
+proj.push({
+  title: '7 · ปิดลิงก์ประหยัดไฟตอนกลางคืนโดยไม่เสียความทนทาน',
+  question: 'ตอนกลางคืนปิดลิงก์ที่ไม่จำเป็นในเครือข่ายวิทยาเขตเพื่อประหยัดไฟได้แค่ไหน โดยที่ลิงก์ใดขาด 1 เส้นก็ยังไม่มีอาคารหลุด? และเช้าวันรุ่งขึ้นจะเปิดกลับอย่างไรไม่ให้คนเจอเน็ตช้า?',
+  gap: 'ช่องว่างที่ยังไม่มีใครทำ: Energy Efficient Ethernet (802.3az) ประหยัดได้แค่ระดับพอร์ตขณะว่าง และระบบจัดการเครือข่ายทั่วไปไม่มีฟังก์ชัน "ปิดลิงก์ทั้งเส้นตามเวลา" ที่ตรวจทั้งความจุและความทนทาน N-1 ก่อนปิด',
+  pitch: 'ใช้ได้จริงตอนนี้: ค่าไฟของมหาวิทยาลัยและโรงพยาบาลสูงขึ้นทุกปี และหลายองค์กรมีเป้า net zero · ต่อยอด: ดึงโหลดจริงจาก SNMP/sFlow, สั่งปิดพอร์ตผ่าน NETCONF, วัดวัตต์ด้วย PDU จริง, เทียบ greedy กับ ILP',
+  init: Green.init,
+  actions: {
+    optimize: { label: '🌙 คำนวณและปิดลิงก์ที่ไม่จำเป็น', run: Green.optimize },
+    n1: { label: '🛡 บังคับทน N-1', run: s => Green.set(s, { n1: true }, 'ต่อจากนี้จะปิดลิงก์เฉพาะเมื่อลิงก์ที่เหลือขาดเส้นใดก็ยังไม่มีอาคารหลุด') },
+    failWorst: { label: '💥 ลิงก์ที่สำคัญที่สุดขาด', run: Green.failWorst },
+    repair: { label: '🔧 ซ่อมลิงก์', run: Green.repair },
+    proactive: { label: '📅 ตั้งปลุกล่วงหน้า 07:45', run: s => Green.set(s, { proactive: true }, 'ปลุกลิงก์ล่วงหน้าตามตารางเรียน ไม่รอให้โหลดมาก่อน') },
+    morning: { label: '🌅 08:00 คนเข้าเรียน', run: Green.morning },
+    tick: { label: '⏱ ผ่านไป 2 นาที', run: Green.tick },
+  },
+  view: s => {
+    const act = Green.active(s), r = Green.route(act, Green.DEMAND[s.period]), w = Green.watts(s);
+    const st = l => s.failed.includes(l.id) ? tag('bad-t', 'ขาด') : s.waking.includes(l.id) ? tag('warn-t', 'กำลังตื่น') : s.asleep.includes(l.id) ? tag('', '💤 ปิด') : tag('ok', 'เปิด');
+    return `<p>ช่วงเวลา: <b>${s.period === 'night' ? 'กลางคืน' : 'กลางวัน'}</b> · ใช้ไฟ <b>${w}</b> / ${Green.ALL_W} วัตต์ (ประหยัด ${Math.round(100 * (1 - w / Green.ALL_W))}%) · บังคับ N-1: ${s.n1 ? 'เปิด' : 'ปิด'} · ปลุกล่วงหน้า: ${s.proactive ? 'เปิด' : 'ปิด'}</p>` +
+      `<p>ทนลิงก์ขาด 1 เส้นได้ทุกกรณีไหม: ${Green.survivesAnyOne(act) ? tag('ok', 'ทนได้') : tag('bad-t', 'ไม่ได้ — มีลิงก์ที่ขาดแล้วอาคารหลุด')} · รับโหลดไม่ไหว: <span class="${r.dropped ? 'bad-t' : 'ok'}">${r.dropped} Gb/s</span>${r.cut.length ? ` · <span class="bad-t">อาคารหลุด: ${r.cut.map(b => Green.BUILDINGS[b]).join(', ')}</span>` : ''}</p>` +
+      '<table><tr><th>ลิงก์</th><th>วัตต์</th><th>สถานะ</th><th>โหลด / ความจุ (Gb/s)</th></tr>' +
+      Green.LINKS.map(l => `<tr><td>${l.id}</td><td>${l.w}</td><td>${st(l)}</td><td class="${r.load[l.id] > Green.CAP * 0.7 ? 'warn-t' : ''}">${r.load[l.id] != null ? `${r.load[l.id]} / ${Green.CAP}` : '—'}</td></tr>`).join('') + '</table>' +
+      `<p class="muted" style="margin-top:8px">ความต้องการตอนนี้: ${Object.entries(Green.DEMAND[s.period]).map(([b, d]) => `${Green.BUILDINGS[b]} ${d}`).join(' · ')} Gb/s · ตอนคำนวณเผื่อโหลดพุ่ง 30%</p>`;
+  },
+  scenarios: [
+    { title: 'ประหยัดสุดแต่เปราะ', desc: 'ปิดทุกเส้นที่ปิดได้ เหลือแค่ต้นไม้ประหยัดไฟได้เกินครึ่ง — แต่ลิงก์เส้นเดียวขาด ทุกอาคารรวมถึงโรงพยาบาลหลุด', steps: ['optimize', 'failWorst'] },
+    { title: 'ประหยัดแบบทน N-1', desc: 'บังคับให้ทนลิงก์ขาด 1 เส้น ประหยัดได้น้อยลง แต่เส้นไหนขาดก็ไม่มีใครหลุด', steps: ['n1', 'optimize', 'failWorst'] },
+    { title: 'เช้าวันใหม่แบบรอโหลด', desc: 'ปลุกลิงก์เมื่อโหลดมาแล้ว — ช่วงที่ลิงก์ยังไม่พร้อมคนทั้งวิทยาเขตเจอเน็ตช้า', steps: ['n1', 'optimize', 'morning', 'tick'] },
+    { title: 'เช้าวันใหม่แบบปลุกล่วงหน้า', desc: 'ตั้งปลุกตามตารางเรียน 15 นาทีก่อน — ไม่มีช่วงช้า แล้วคำนวณใหม่ว่ากลางวันปิดอะไรได้บ้าง', steps: ['n1', 'optimize', 'proactive', 'morning', 'optimize'] },
+  ],
+});
+
+// ---- 8 ASPA ----
+const aspaActs = {};
+for (const a of Aspa.PUBLISHERS) aspaActs['pub' + a] = { label: `📜 ${Aspa.AS[a].name} ประกาศ ASPA`, run: s => Aspa.publish(s, a) };
+Object.assign(aspaActs, {
+  pubAll: { label: '📜 ทุก AS ที่สุจริตประกาศ', run: Aspa.publishAll },
+  newProvider: { label: '🆕 CDN เปิดใช้ ISP-C (ลืมแก้ ASPA)', run: Aspa.newProvider },
+  cdnUpdate: { label: '✏ CDN เพิ่ม ISP-C ใน ASPA', run: Aspa.cdnUpdate },
+});
+const V = { valid: tag('ok', 'Valid'), invalid: tag('bad-t', 'Invalid → ทิ้ง'), unknown: tag('warn-t', 'Unknown → รับ') };
+const H = { p: '✓', notp: '✗', none: '?' };
+proj.push({
+  title: '8 · พรีวิวผลกระทบ ASPA ก่อนเปิดใช้',
+  question: 'ASPA (การประกาศใน RPKI ว่า AS ใดเป็นผู้ให้บริการของเรา) จับ route leak และการปลอมเส้นทางที่ RPKI แบบตรวจต้นทาง (ROV) ปล่อยผ่านได้ไหม? ต้องมีกี่ AS ประกาศจึงเริ่มได้ผล? และถ้าประกาศผิดจะทำเส้นทางตัวเองหายแค่ไหน?',
+  gap: 'ช่องว่างที่ยังไม่มีใครทำ: RPKI validator และเราเตอร์รุ่นใหม่เริ่มรองรับการตรวจ ASPA แล้ว แต่ยังไม่มีเครื่องมือทั่วไปที่ "พรีวิว" ว่าถ้าเปิดใช้วันนี้ เส้นทางที่รับอยู่จริงจะกลายเป็น Invalid กี่เส้น และ ASPA ของใครที่ตกยุค',
+  pitch: 'ใช้ได้จริงตอนนี้: route leak ทำให้บริการใหญ่ล่มเป็นวงกว้างหลายครั้ง และ ASPA กำลังจะเป็นมาตรฐาน · ต่อยอด: ดึงเส้นทางจริงจาก RIPE RIS / RouteViews + ASPA จริงจาก rpki-client แล้วรายงานรายวันว่าเส้นทางไหนจะถูกทิ้ง (โปรเจกต์นี้ต่างจาก RPKI ในไฟล์ก่อน: อันนั้นตรวจต้นทาง อันนี้ตรวจทั้งเส้นทาง)',
+  init: Aspa.init, actions: aspaActs,
+  view: s => {
+    const asRow = a => `<tr><td>AS${a}</td><td>${Aspa.AS[a].name}</td><td>${s.published.includes(+a) ? tag('ok', 'ประกาศแล้ว') : tag('', 'ยังไม่ประกาศ')}</td><td>${(+a === 64500 && s.cdnUpdated ? [...Aspa.AS[a].providers, 64503] : Aspa.AS[a].providers).map(p => 'AS' + p).join(', ') || 'ไม่มี (Tier-1)'}</td></tr>`;
+    const hops = (r, v) => { const seq = [...new Set(r.path)].reverse(); return seq.map((a, i) => `AS${a}` + (i < seq.length - 1 ? ` <b>${H[v.up[i]]}</b>→ ` : '')).join(''); };
+    return '<table><tr><th>AS</th><th>ชื่อ</th><th>ASPA</th><th>ผู้ให้บริการจริง</th></tr>' + Object.keys(Aspa.AS).map(asRow).join('') + '</table>' +
+      '<h3>เส้นทางที่ ISP-B ได้รับ (เรียงจากต้นทาง → เพื่อนบ้าน · ✓ ต่อไปหาผู้ให้บริการที่ประกาศไว้ · ✗ ประกาศไว้แต่ไม่ใช่ · ? ยังไม่ประกาศ)</h3>' +
+      '<table><tr><th>เส้นทาง</th><th>ได้จาก</th><th>ลำดับ AS</th><th>ROV (ต้นทาง)</th><th>ASPA</th></tr>' +
+      Aspa.routes(s).map(r => { const v = Aspa.verify(s, r); return `<tr><td>${r.label}</td><td>${r.from === 'customer' ? 'ลูกค้า (ตรวจขาขึ้น)' : 'ผู้ให้บริการ (ตรวจขึ้น-ลง)'}</td><td>${hops(r, v)}</td><td>${Aspa.ROA[r.origin] ? tag('ok', 'Valid') : tag('warn-t', 'NotFound')}</td><td>${V[v.verdict]}</td></tr>`; }).join('') + '</table>';
+  },
+  scenarios: [
+    { title: 'Route leak ไม่ต้องรอคนรั่ว', desc: 'ลูกค้าที่ต่อสองค่ายส่งเส้นทางจาก ISP-A มาให้เรา ROV บอก Valid · ลองให้ CDN ประกาศก่อน แล้วตามด้วย Tier-1 A — ผู้ที่ทำรั่วไม่ต้องประกาศอะไรเลยก็จับได้', steps: ['pub64500', 'pub64496', 'pub64497'] },
+    { title: 'ปลอมเส้นทาง ROV ผ่าน', desc: 'ผู้โจมตีประกาศเส้นทาง [ผู้โจมตี, CDN] ต้นทางถูกต้อง ROV จึงผ่าน — แต่ ASPA ของ CDN บอกว่าผู้โจมตีไม่ใช่ผู้ให้บริการ', steps: ['pub64500'] },
+    { title: 'ลืมแก้ ASPA', desc: 'CDN ซื้อผู้ให้บริการรายใหม่แต่ไม่ได้อัปเดต ASPA — เส้นทางที่ถูกต้องกลายเป็น Invalid ทั่วโลก นี่คือสิ่งที่ต้องพรีวิวก่อน', steps: ['pubAll', 'newProvider', 'cdnUpdate'] },
+    { title: 'ทุกคนประกาศ', desc: 'ภาพเป้าหมาย: เส้นทางปกติผ่าน ทั้ง leak และการปลอมถูกทิ้ง', steps: ['pubAll'] },
+  ],
+});
+
+// ---- 9 Microseg ----
+proj.push({
+  title: '9 · สร้างกฎ zero trust จากทราฟฟิกจริง พร้อมบอกว่า "เรียนรู้พอหรือยัง"',
+  question: 'ถ้าให้ระบบเรียนรู้ว่าเซิร์ฟเวอร์ไหนคุยกับใครแล้วสร้างกฎ "อนุญาตเฉพาะที่เคยเห็น" ต้องเรียนรู้นานแค่ไหนจึงไม่บล็อกงานที่นานๆ เกิดที (แบ็กอัปรายสัปดาห์, ปิดยอดสิ้นเดือน)? และถ้ามีผู้บุกรุกอยู่แล้วระหว่างเรียนรู้จะเกิดอะไรขึ้น?',
+  gap: 'ช่องว่างที่ยังไม่มีใครทำ: ตัวสร้างกฎจาก flow ที่มีอยู่สร้างกฎจากสิ่งที่เห็นแต่ไม่บอกว่า "ยังมีอะไรที่ไม่เคยเห็น" · ยังไม่มีเครื่องมือทั่วไปที่วัดความพร้อมก่อนบังคับใช้ (โหมด audit + จำนวนวันที่ไม่มี flow ใหม่) และเตือนเมื่อสิ่งที่เรียนรู้อาจมีผู้บุกรุกปน',
+  pitch: 'ใช้ได้จริงตอนนี้: ransomware ในโรงพยาบาลและองค์กรไทยแพร่ด้วยการเคลื่อนที่ข้ามเครื่อง ซึ่ง microsegmentation หยุดได้ แต่ทีมไม่กล้าเปิดเพราะกลัวงานพัง · ต่อยอด: เก็บ flow จาก Cilium Hubble / VPC Flow Logs, สร้าง NetworkPolicy อัตโนมัติ, จับงานตามรอบด้วยการหาความถี่, ตรวจ flow ผิดปกติระหว่างเรียนรู้',
+  init: Microseg.init,
+  actions: {
+    day: { label: '📅 ผ่านไป 1 วัน', run: Microseg.day },
+    week: { label: '🗓 ผ่านไป 1 สัปดาห์', run: s => Microseg.days(s, 7) },
+    audit: { label: '👀 เปลี่ยนเป็นโหมด audit (จดแต่ไม่บล็อก)', run: s => Microseg.set(s, { mode: 'audit', quietDays: 0 }, 'โหมด audit: flow ที่ไม่ตรงกฎจะถูกจดไว้ให้ตรวจ แต่ยังไม่บล็อก') },
+    enforce: { label: '🔒 บังคับใช้กฎ', run: s => Microseg.set(s, { mode: 'enforce' }, `เริ่มบังคับใช้ ${Microseg.rules(s).length} กฎ — นอกนั้นบล็อกทั้งหมด`) },
+    acceptAll: { label: '✅ รับ flow ที่ audit เจอเป็นกฎ', run: Microseg.acceptAll },
+    granIp: { label: '🔢 กฎแบบรายเครื่อง (IP)', run: s => Microseg.set(s, { gran: 'ip' }, 'กฎผูกกับเครื่องแต่ละตัว เช่น web-1 → app-1:8080') },
+    granRole: { label: '🏷 กฎแบบตามบทบาท', run: s => Microseg.set(s, { gran: 'role' }, 'กฎผูกกับบทบาท เช่น web → app:8080') },
+    autoscale: { label: '📈 autoscale เพิ่ม app-3', run: s => Microseg.set(s, { scaled: true }, 'ระบบเพิ่มเครื่อง app-3 อัตโนมัติเพราะโหลดสูง') },
+    compromise: { label: '🦠 web-1 ถูกเจาะ', run: s => Microseg.set(s, { compromised: true }, 'ผู้บุกรุกเข้าควบคุม web-1 ได้แล้ว และเริ่มลองไปเครื่องอื่นทุกวัน') },
+  },
+  view: s => {
+    const list = (title, items, cls) => `<h3>${title} (${items.length})</h3>${items.length ? `<ul class="plain">${items.slice(-5).map(x => `<li class="${cls}">${x}</li>`).join('')}</ul>` : '<p class="muted">—</p>'}`;
+    const mode = { learn: 'เรียนรู้', audit: 'audit (จดแต่ไม่บล็อก)', enforce: 'บังคับใช้' }[s.mode];
+    return `<p>วันที่ ${s.day} · โหมด: <b>${mode}</b> · กฎแบบ: <b>${s.gran === 'ip' ? 'รายเครื่อง' : 'ตามบทบาท'}</b>${s.scaled ? ' · มี app-3' : ''}${s.compromised ? ' · <span class="bad-t">web-1 ถูกเจาะ</span>' : ''}</p>` +
+      (s.mode === 'audit' ? `<p>ความพร้อม: ไม่มี flow ใหม่ติดกัน <b>${s.quietDays}</b> วัน ${s.quietDays >= 7 ? tag('ok', 'ครบรอบสัปดาห์ — พร้อมกว่าเดิม') : tag('warn-t', 'ยังไม่ครบ 1 สัปดาห์')} <span class="muted">(งานรายเดือนต้องรอนานกว่านี้)</span></p>` : '') +
+      `<h3>กฎที่เรียนรู้ (${Microseg.rules(s).length})</h3><p>${Microseg.rules(s).map(r => tag('', r)).join(' ') || '<span class="muted">ยังไม่มี</span>'}</p>` +
+      (s.wouldDeny.length ? list('audit เจอ flow ใหม่ รอตรวจ', s.wouldDeny.map(f => f.label + (f.legit ? '' : ' ⚠️')), 'warn-t') : '') +
+      list('งานจริงที่ถูกบล็อก (ระบบล่ม)', s.outages, 'bad-t') + list('ผู้บุกรุกที่ถูกบล็อก', s.blocked, 'ok') +
+      list('ผู้บุกรุกที่ผ่านได้', s.leaked, 'bad-t') + list('ทราฟฟิกผู้บุกรุกที่ถูกเรียนรู้เป็นกฎ', s.poisoned, 'bad-t');
+  },
+  scenarios: [
+    { title: 'เรียน 3 วันแล้วบังคับเลย', desc: 'เรียนรู้จันทร์-พุธแล้วบังคับใช้ — วันอาทิตย์แบ็กอัปถูกบล็อก', steps: ['day', 'day', 'day', 'enforce', 'week'] },
+    { title: 'audit ก่อน แต่ยังพลาดสิ้นเดือน', desc: 'มีช่วง audit 1 สัปดาห์ช่วยจับแบ็กอัปได้ แต่งานปิดยอดสิ้นเดือนยังไม่เคยเกิด — ระยะเรียนรู้ต้องครอบรอบที่ยาวที่สุดของธุรกิจ', steps: ['day', 'day', 'day', 'audit', 'week', 'acceptAll', 'enforce', 'week', 'week'] },
+    { title: 'จับการเคลื่อนที่ข้ามเครื่อง', desc: 'เรียนรู้ครบสัปดาห์แล้วบังคับใช้ เมื่อ web-1 ถูกเจาะ ผู้บุกรุกไปฐานข้อมูลหรือ SSH ข้ามเครื่องไม่ได้', steps: ['week', 'enforce', 'compromise', 'day'] },
+    { title: 'มีผู้บุกรุกตั้งแต่ตอนเรียนรู้', desc: 'web-1 ถูกเจาะอยู่ก่อนแล้ว ระบบเรียนรู้ทราฟฟิกของผู้บุกรุกเป็น "ปกติ" — กฎจึงเปิดทางให้เอง', steps: ['compromise', 'week', 'enforce', 'day'] },
+    { title: 'autoscale กับกฎรายเครื่อง', desc: 'กฎแบบรายเครื่องบล็อกเครื่องใหม่ที่ autoscale สร้าง กฎตามบทบาทไม่มีปัญหานี้', steps: ['week', 'granIp', 'enforce', 'autoscale', 'day', 'granRole', 'day'] },
+  ],
+});
+
+// ---- 10 IPv6-mostly ----
+const v6Acts = {
+  dns64: { label: '🔤 เปิด DNS64', run: s => V6.set(s, { dns64: true }, 'DNS ของเครือข่ายสร้าง AAAA ให้เว็บที่มีแค่ IPv4') },
+  nat64: { label: '🔁 เปิด NAT64', run: s => V6.set(s, { nat64: true }, 'เกตเวย์แปล IPv6 64:ff9b::/96 ไปเป็น IPv4') },
+  opt108: { label: '📮 เปิด DHCP option 108', run: s => V6.set(s, { opt108: true }, 'บอกเครื่องที่รองรับว่า "ใช้ IPv6 อย่างเดียวได้ ไม่ต้องขอ IPv4" (RFC 8925)') },
+  v4off: { label: '⛔ ปิด IPv4 ทั้งวง', run: s => V6.set(s, { ipv4: false }, 'ปิด DHCPv4 — เครือข่าย IPv6 อย่างเดียว') },
+  pref64: { label: '📡 ประกาศ PREF64 ใน RA', run: s => V6.set(s, { pref64: true }, 'Router Advertisement บอก prefix ของ NAT64 ให้ CLAT โดยตรง (RFC 8781)') },
+  nsp: { label: '🏷 ใช้ NAT64 prefix ของเครือข่ายเอง', run: s => V6.set(s, { nsp: true }, 'เปลี่ยนจาก 64:ff9b::/96 เป็น prefix ของเครือข่ายเอง จึงแปลไปที่อยู่ส่วนตัวได้') },
+  pubDns: { label: '🌍 โน้ตบุ๊กใหม่ตั้ง DNS สาธารณะเอง', run: s => V6.set(s, { pubDns: true }, 'ผู้ใช้ตั้ง DNS ของเครื่องเป็น public resolver ทำให้ไม่ผ่าน DNS64') },
+};
+proj.push({
+  title: '10 · ทดสอบก่อนย้ายเป็นเครือข่าย IPv6-mostly',
+  question: 'ถ้าย้ายเครือข่ายที่ IPv4 เต็มแล้วไปเป็น IPv6 อุปกรณ์และแอปไหนจะพัง? การให้เครื่องที่พร้อมใช้ IPv6 อย่างเดียว (option 108) ขณะที่เครื่องเก่ายังได้ IPv4 จะประหยัด IPv4 ได้เท่าไรโดยไม่มีอะไรพัง?',
+  gap: 'ช่องว่างที่ยังไม่มีใครทำ: เครื่องมือทดสอบ IPv6 ทั่วไปบอกได้แค่ "เครื่องนี้มี IPv6 ไหม" · ยังไม่มีเครื่องมือที่รับรายการอุปกรณ์และชนิดแอปของทั้งองค์กร แล้วพยากรณ์ว่าเปิด NAT64/DNS64/option 108/PREF64 ชุดไหนจะพังตรงไหน ก่อนกดเปลี่ยนจริง',
+  pitch: 'ใช้ได้จริงตอนนี้: IPv4 หมดและแพงขึ้นเรื่อยๆ มหาวิทยาลัยและงานประชุมใหญ่ในต่างประเทศเริ่มใช้ IPv6-mostly แล้ว · ต่อยอด: เก็บความสามารถของอุปกรณ์จาก DHCP fingerprint, ทดสอบบนวงจริงด้วย Jool (NAT64) + Unbound (DNS64), สรุปเป็นแผนย้ายทีละ SSID',
+  init: V6.init, actions: v6Acts,
+  view: s => {
+    const flags = [['IPv4 (DHCPv4)', s.ipv4], ['option 108', s.opt108], ['DNS64', s.dns64], ['NAT64', s.nat64], ['PREF64', s.pref64], ['prefix ของเครือข่ายเอง', s.nsp]];
+    const keys = Object.keys(V6.DEV), dests = Object.keys(V6.DEST);
+    return `<p>${flags.map(([n, on]) => tag(on ? 'ok' : '', `${n}: ${on ? 'เปิด' : 'ปิด'}`)).join(' ')}</p>` +
+      `<p>ใช้ IPv4 <b>${V6.leases(s)}</b> / 5 เครื่อง · กรณีที่พัง <b class="${V6.broken(s).length ? 'bad-t' : 'ok'}">${V6.broken(s).length}</b></p>` +
+      `<table class="cells"><tr><th>อุปกรณ์</th><th>ได้ IPv4?</th><th>CLAT</th>${dests.map(t => `<th>${V6.DEST[t]}</th>`).join('')}</tr>` +
+      keys.map(k => { const d = V6.DEV[k]; return `<tr><th>${d.name}${k === 'laptopNew' && s.pubDns ? ' <span class="warn-t">(DNS สาธารณะ)</span>' : ''}</th><td>${V6.hasV4(s, d) ? 'ได้' : '—'}</td><td>${V6.clatOn(s, k) ? tag('ok', 'ทำงาน') : '—'}</td>${dests.map(t => { const r = V6.reach(s, k, t); return `<td>${r.ok ? `<span class="ok">✓</span> <span class="muted">${r.via}</span>` : `<span class="bad-t">✗ ${r.via}</span>`}</td>`; }).join('')}</tr>`; }).join('') + '</table>';
+  },
+  scenarios: [
+    { title: 'ปิด IPv4 ทั้งวงทันที', desc: 'แนวทางที่ดูง่ายที่สุด: เปิด NAT64/DNS64 แล้วปิด IPv4 — เครื่องพิมพ์และกล้องหายจากเครือข่าย โน้ตบุ๊กเก่าเปิดแอปเก่าไม่ได้', steps: ['dns64', 'nat64', 'v4off'] },
+    { title: 'IPv6-mostly ด้วย option 108', desc: 'เครื่องที่พร้อมเลิกขอ IPv4 เอง เครื่องเก่ายังได้ IPv4 — แต่การสั่งพิมพ์จากมือถือพังเพราะ prefix มาตรฐานห้ามแปลไปที่อยู่ส่วนตัว', steps: ['dns64', 'nat64', 'opt108', 'nsp'] },
+    { title: 'ผู้ใช้ตั้ง DNS เอง', desc: 'โน้ตบุ๊กใหม่ใช้ DNS สาธารณะ เลยไม่ได้ DNS64 และ CLAT หา prefix ไม่เจอ — แก้ฝั่งเครือข่ายด้วย PREF64 ใน RA', steps: ['dns64', 'nat64', 'opt108', 'nsp', 'pubDns', 'pref64'] },
+    { title: 'ลืมเปิด NAT64', desc: 'DNS64 สร้างที่อยู่ให้ แต่ไม่มีใครรับแปล — เว็บ IPv4 กลายเป็นหลุมดำที่แย่กว่าไม่ตอบ', steps: ['dns64', 'opt108'] },
+  ],
+});
+
+// ---- rendering ----
+const ui = { p: 0, tab: 'free', s: null, step: 0, log: [] };
+const $ = id => document.getElementById(id);
+function reset() { ui.s = proj[ui.p].init(); ui.step = 0; ui.log = []; }
+function render() {
+  const pr = proj[ui.p];
+  $('projects').innerHTML = proj.map((x, i) => `<button class="${i === ui.p ? 'on' : ''}" data-proj="${i}">${x.title}</button>`).join('');
+  const scen = ui.tab === 'free' ? null : pr.scenarios[ui.tab];
+  let h = `<h2>${pr.title}</h2><p class="question"><b>คำถาม:</b> ${pr.question}</p><p class="gap">${pr.gap}</p><p class="pitch">${pr.pitch}</p>`;
+  h += '<div class="tabs"><button class="' + (scen ? '' : 'on') + '" data-tab="free">เล่นอิสระ</button>' + pr.scenarios.map((x, i) => `<button class="${ui.tab === i ? 'on' : ''}" data-tab="${i}">สถานการณ์: ${x.title}</button>`).join('') + '</div>';
+  if (scen) h += `<p style="margin-top:12px">${scen.desc}</p>`;
+  h += '<h3>สถานะปัจจุบัน</h3><div class="panel">' + pr.view(ui.s) + '</div>';
+  h += `<div class="happened ${ui.s.last.bad ? 'bad' : ''}"><b>เพิ่งเกิดอะไรขึ้น:</b> ${ui.s.last.text}</div>`;
+  if (scen) {
+    h += '<h3>กดตามลำดับ</h3><ol class="steps">' + scen.steps.map((k, i) => `<li class="${i < ui.step ? 'done' : ''}"><span class="n">${i + 1}.</span><button data-step="${i}" class="${i === ui.step ? 'next' : ''}" ${i === ui.step ? '' : 'disabled'}>${pr.actions[k].label}</button></li>`).join('') + '</ol>';
+    if (ui.step >= scen.steps.length) h += '<p class="muted" style="margin-top:8px">จบสถานการณ์แล้ว — กด "เริ่มใหม่" เพื่อลองอีกครั้ง</p>';
+  } else {
+    h += '<h3>ปุ่มเล่นอิสระ</h3><div class="row">' + Object.entries(pr.actions).map(([k, a]) => `<button data-act="${k}">${a.label}</button>`).join('') + '</div>';
+  }
+  h += '<div class="row" style="margin-top:14px"><button data-reset="1">↺ เริ่มใหม่</button></div>';
+  if (ui.log.length) h += '<h3>ประวัติ</h3><ul class="log">' + ui.log.slice(-8).reverse().map(x => `<li>${x}</li>`).join('') + '</ul>';
+  $('project').innerHTML = h;
+}
+function apply(key) { ui.s = proj[ui.p].actions[key].run(ui.s); ui.log.push(ui.s.last.text); }
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t || t.disabled) return;
+  const d = t.dataset;
+  if (d.proj != null) { ui.p = Number(d.proj); ui.tab = 'free'; reset(); }
+  else if (d.tab != null) { ui.tab = d.tab === 'free' ? 'free' : Number(d.tab); reset(); }
+  else if (d.reset) reset();
+  else if (d.act) apply(d.act);
+  else if (d.step != null) { apply(proj[ui.p].scenarios[ui.tab].steps[Number(d.step)]); ui.step++; }
+  render();
+});
+reset(); render();
+</script>
+</body>
+</html>

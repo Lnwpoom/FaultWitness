@@ -1,0 +1,708 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — 5 โปรเจกต์เน็ตเวิร์กระดับประกวด (ชุดใหม่)</title>
+<style>
+  :root { --bg:#fafaf9; --fg:#1c1917; --muted:#78716c; --line:#e7e5e4; --card:#fff; --accent:#4f46e5; --accent-soft:#eef2ff; --warn:#b45309; --warn-soft:#fffbeb; --bad:#b91c1c; --ok:#15803d; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1c1917; --fg:#f5f5f4; --muted:#a8a29e; --line:#3a3532; --card:#262220; --accent:#a5b4fc; --accent-soft:#2a2a45; --warn:#fbbf24; --warn-soft:#3a2f12; --bad:#f87171; --ok:#4ade80; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif; }
+  main { max-width:920px; margin:0 auto; padding:32px 16px 80px; }
+  h1 { font-size:1.5rem; margin:0 0 4px; }
+  h2 { font-size:1.2rem; margin:24px 0 8px; }
+  h3 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:24px 0 8px; }
+  p { margin:0 0 8px; }
+  .banner { background:var(--warn-soft); border:1px solid var(--line); color:var(--warn); padding:8px 12px; border-radius:8px; font-size:.9rem; margin-bottom:20px; }
+  .muted { color:var(--muted); }
+  .question { background:var(--accent-soft); border-radius:8px; padding:12px 14px; }
+  .pitch { font-size:.9rem; color:var(--muted); border-left:3px solid var(--line); padding-left:12px; }
+  nav.projects { display:flex; flex-wrap:wrap; gap:6px; margin:16px 0 0; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:8px; padding:6px 12px; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.next { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+  .tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:1px solid var(--line); margin-top:20px; padding-bottom:8px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; overflow-x:auto; }
+  .happened { margin-top:10px; padding:10px 14px; border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:4px; }
+  .happened.bad { border-color:var(--bad); }
+  table { border-collapse:collapse; width:100%; font-size:.92rem; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:10px; }
+  .tag { display:inline-block; padding:0 8px; border-radius:999px; font-size:.8rem; border:1px solid var(--line); }
+  .ok { color:var(--ok); } .bad-t { color:var(--bad); } .warn-t { color:var(--warn); }
+  .row { display:flex; flex-wrap:wrap; gap:6px; }
+  ol.steps { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
+  ol.steps li { display:flex; gap:10px; align-items:center; }
+  ol.steps .n { width:1.6rem; color:var(--muted); text-align:right; }
+  .done button { text-decoration:line-through; }
+  ul.log, ul.plain { margin:0; padding-left:18px; font-size:.9rem; }
+  ul.log { color:var(--muted); }
+  code { background:var(--accent-soft); padding:0 4px; border-radius:4px; }
+  .cells td { text-align:center; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<main>
+  <h1>5 โปรเจกต์เน็ตเวิร์กระดับประกวดมหาวิทยาลัย (ชุดใหม่)</h1>
+  <div class="banner">⚠️ PROTOTYPE — โค้ดทิ้งได้ ไม่ใช่ของจริง · คำถามที่ต้องการคำตอบ: "อัลกอริทึมหลักของแต่ละโปรเจกต์ยังถูกต้องไหมในกรณียากๆ ที่กรรมการชอบถาม" · เฉพาะส่วน <code>&lt;script id="logic"&gt;</code> เท่านั้นที่ตั้งใจให้ยกไปใช้ต่อได้ · ไม่ซ้ำกับ 10 โปรเจกต์ในไฟล์ PROTOTYPE อื่นในโฟลเดอร์นี้</div>
+  <p class="muted">เลือกโปรเจกต์ → ลองกดปุ่มเล่นอิสระ หรือเปิดแท็บ "สถานการณ์" แล้วกดไปตามลำดับ (ทุกแท็บเริ่มจากสถานะตั้งต้นเดียวกัน)</p>
+  <nav class="projects" id="projects"></nav>
+  <section id="project"></section>
+</main>
+
+<!-- ============================================================
+     LOGIC — pure, no DOM. Liftable into the real codebase later.
+     ============================================================ -->
+<script id="logic">
+const msg = (text, bad = false) => ({ text, bad });
+
+// ---------- 1. Fault-tolerant SDN controller cluster (Raft consensus) ----------
+const Raft = (() => {
+  const IDS = ['N1', 'N2', 'N3', 'N4', 'N5'];
+  const MAJORITY = 3;
+  const init = () => ({
+    nodes: IDS.map(id => ({ id, term: 1, role: id === 'N1' ? 'leader' : 'follower', votedFor: 'N1', log: [], commit: 0, up: true, group: 'A' })),
+    rules: 0,
+    last: msg('คลัสเตอร์คอนโทรลเลอร์ 5 เครื่อง · N1 เป็นผู้นำสมัยที่ 1 · กฎจะ "ยืนยันแล้ว" และส่งลงสวิตช์ได้ก็ต่อเมื่ออยู่ในเครื่องส่วนใหญ่ (≥ 3 จาก 5)'),
+  });
+  const node = (s, id) => s.nodes.find(n => n.id === id);
+  const reach = (a, b) => a.up && b.up && a.group === b.group;
+  const lastTerm = n => n.log.length ? n.log[n.log.length - 1].term : 0;
+  const atLeastAsUpToDate = (c, v) => lastTerm(c) > lastTerm(v) || (lastTerm(c) === lastTerm(v) && c.log.length >= v.log.length);
+  const same = (x, y) => x.term === y.term && x.cmd === y.cmd;
+  const matchLen = (a, b) => { let i = 0; while (i < a.length && i < b.length && same(a[i], b[i])) i++; return i; };
+  const set = (nodes, id, patch) => nodes.map(n => n.id === id ? { ...n, ...patch } : n);
+
+  // One AppendEntries round from leader `lid` to everyone it can reach.
+  function replicate(nodes, lid) {
+    const L = nodes.find(n => n.id === lid);
+    const higher = nodes.filter(n => reach(L, n) && n.term > L.term);
+    if (higher.length) {
+      const term = Math.max(...higher.map(n => n.term));
+      return { nodes: set(nodes, lid, { role: 'follower', term, votedFor: null }), note: `${lid} เจอเครื่องที่อยู่สมัย ${term} ซึ่งใหม่กว่า → ลงจากผู้นำเอง`, dropped: 0 };
+    }
+    let dropped = 0;
+    nodes = nodes.map(n => {
+      if (n.id === lid || !reach(L, n)) return n;
+      dropped += n.log.length - matchLen(n.log, L.log);
+      return { ...n, term: L.term, role: 'follower', votedFor: n.term === L.term ? n.votedFor : null, log: L.log.slice() };
+    });
+    // Commit only entries from the leader's own term that a majority holds (Raft §5.4.2).
+    let commit = L.commit;
+    for (let i = L.log.length; i > L.commit; i--) {
+      if (L.log[i - 1].term !== L.term) break;
+      if (nodes.filter(n => matchLen(n.log, L.log) >= i).length >= MAJORITY) { commit = i; break; }
+    }
+    nodes = nodes.map(n => n.id === lid || reach(L, n) ? { ...n, commit: Math.max(n.commit, commit) } : n);
+    return { nodes, note: null, dropped };
+  }
+  function timeout(s, id) {
+    const c = node(s, id);
+    if (!c.up) return { ...s, last: msg(`${id} ดับอยู่ เริ่มเลือกตั้งไม่ได้`, true) };
+    const term = c.term + 1;
+    let nodes = set(s.nodes, id, { term, role: 'candidate', votedFor: id });
+    const cand = nodes.find(n => n.id === id);
+    const yes = [id], taken = [], stale = [], steppedDown = [];
+    nodes = nodes.map(v => {
+      if (v.id === id || !reach(cand, v)) return v;
+      if (v.term > term) { taken.push(v.id); return v; }
+      let w = v;
+      if (v.term < term) { if (v.role === 'leader') steppedDown.push(v.id); w = { ...v, term, role: 'follower', votedFor: null }; }
+      if (w.votedFor !== null) { taken.push(v.id); return w; }
+      if (!atLeastAsUpToDate(cand, w)) { stale.push(v.id); return w; }
+      yes.push(v.id); return { ...w, votedFor: id };
+    });
+    const down = steppedDown.length ? ` · ${steppedDown.join(', ')} เห็นสมัยใหม่จึงลงจากผู้นำ` : '';
+    if (yes.length < MAJORITY) {
+      const why = (stale.length ? ` · ${stale.join(', ')} ไม่ให้เพราะ log ของ ${id} ตามหลัง` : '') + (taken.length ? ` · ${taken.join(', ')} โหวตคนอื่นไปแล้ว` : '');
+      return { ...s, nodes, last: msg(`${id} ขอเป็นผู้นำสมัย ${term}: ได้ ${yes.length}/5 เสียง (${yes.join(', ')}) ไม่ถึงเสียงข้างมาก${why}${down}`, true) };
+    }
+    // A new leader appends a no-op so entries from older terms can be committed.
+    nodes = set(nodes, id, { role: 'leader', log: [...cand.log, { term, cmd: 'no-op' }] });
+    const r = replicate(nodes, id);
+    return { ...s, nodes: r.nodes, last: msg(`👑 ${id} ได้ ${yes.length}/5 เสียง (${yes.join(', ')}) เป็นผู้นำสมัย ${term} · เขียน no-op ประจำสมัยเพื่อยืนยัน log เก่า${down}`) };
+  }
+  function write(s, via) {
+    const n = node(s, via);
+    if (!n.up) return { ...s, last: msg(`${via} ดับอยู่`, true) };
+    if (n.role !== 'leader') return { ...s, last: msg(`${via} ไม่ใช่ผู้นำ → ปฏิเสธการเขียน (ไคลเอนต์ต้องไปหาผู้นำ)`, true) };
+    const cmd = `กฎ#${s.rules + 1}`;
+    const log = [...n.log, { term: n.term, cmd }];
+    const r = replicate(set(s.nodes, via, { log }), via);
+    const holders = r.nodes.filter(x => matchLen(x.log, log) >= log.length).map(x => x.id);
+    const committed = node({ nodes: r.nodes }, via).commit >= log.length;
+    const text = r.note ? `⚠ ${via} เขียน ${cmd} ลง log ตัวเอง แต่ ${r.note}` : committed
+      ? `✅ ${cmd} อยู่ใน ${holders.join(', ')} (${holders.length}/5) → ยืนยันแล้ว ส่งลงสวิตช์ได้`
+      : `⏳ ${cmd} อยู่แค่ ${holders.join(', ')} (${holders.length}/5) → ยังไม่ยืนยัน ห้ามส่งลงสวิตช์`;
+    return { ...s, nodes: r.nodes, rules: s.rules + 1, last: msg(text, !committed) };
+  }
+  function heartbeat(s) {
+    let nodes = s.nodes, dropped = 0;
+    const notes = [];
+    for (const id of IDS) {
+      const L = nodes.find(n => n.id === id);
+      if (!L.up || L.role !== 'leader') continue;
+      const r = replicate(nodes, id);
+      nodes = r.nodes; dropped += r.dropped;
+      notes.push(r.note ?? `${id} (สมัย ${L.term}) ส่ง heartbeat ถึง ${nodes.filter(n => n.id !== id && reach(L, n)).map(n => n.id).join(', ') || 'ไม่มีใคร'}`);
+    }
+    if (!notes.length) return { ...s, last: msg('ไม่มีผู้นำที่ทำงานอยู่ — ต้องรอเครื่องใดเครื่องหนึ่งหมดเวลาแล้วเลือกตั้ง', true) };
+    return { ...s, nodes, last: msg(notes.join(' · ') + (dropped ? ` · 🗑 ลบสำเนารายการที่ไม่เคยยืนยันทิ้ง ${dropped} สำเนา (ไม่เคยลงสวิตช์ จึงไม่มีใครเสียหาย)` : ''), dropped > 0) };
+  }
+  const crash = (s, id) => ({ ...s, nodes: set(s.nodes, id, { up: false }), last: msg(`💥 ${id} ดับ${node(s, id).role === 'leader' ? ' — มันคือผู้นำ! ไม่มีใครรับการเขียนได้จนกว่าจะเลือกตั้งใหม่' : ''}`, true) });
+  const recover = (s, id) => ({ ...s, nodes: set(s.nodes, id, { up: true, role: 'follower' }), last: msg(`🔌 ${id} กลับมาเป็นผู้ตาม (สมัยและ log ที่บันทึกลงดิสก์ยังอยู่)`) });
+  const partition = s => ({ ...s, nodes: s.nodes.map(n => ({ ...n, group: ['N1', 'N2'].includes(n.id) ? 'A' : 'B' })), last: msg('✂ เครือข่ายแยกเป็นสองฝั่ง {N1, N2} | {N3, N4, N5} คุยข้ามฝั่งไม่ได้', true) });
+  const heal = s => ({ ...s, nodes: s.nodes.map(n => ({ ...n, group: 'A' })), last: msg('🔗 เครือข่ายต่อกลับแล้ว (ยังไม่มีใครรู้ตัวจนกว่าจะมี heartbeat)') });
+  // Safety: no two nodes may disagree about an entry both consider committed.
+  function conflicts(s) {
+    const out = [];
+    for (const a of s.nodes) for (const b of s.nodes) if (a.id < b.id && matchLen(a.log, b.log) < Math.min(a.commit, b.commit)) out.push(`${a.id}/${b.id}`);
+    return out;
+  }
+  const switchRules = s => { const n = [...s.nodes].sort((a, b) => b.commit - a.commit)[0]; return n.log.slice(0, n.commit).filter(e => e.cmd !== 'no-op').map(e => e.cmd); };
+  return { IDS, init, timeout, write, heartbeat, crash, recover, partition, heal, conflicts, switchRules };
+})();
+
+// ---------- 2. Traffic engineering: bandwidth-guaranteed tunnels (CSPF + preemption) ----------
+const Te = (() => {
+  const LINKS = [['A', 'B', 100, 1], ['B', 'D', 100, 1], ['A', 'C', 100, 2], ['C', 'D', 100, 2], ['B', 'C', 40, 1]];
+  const DEMANDS = {
+    tele: { name: 'ผ่าตัดทางไกล', bw: 80, prio: 0 },
+    live: { name: 'ถ่ายทอดสด 4K', bw: 120, prio: 2 },
+    erp: { name: 'ระบบลงทะเบียน', bw: 50, prio: 4 },
+    backup: { name: 'สำรองข้อมูล', bw: 70, prio: 7 },
+  };
+  const SRC = 'A', DST = 'D';
+  const init = () => ({
+    links: LINKS.map(([a, b, cap, cost]) => ({ id: `${a}-${b}`, a, b, cap, cost, up: true })),
+    tunnels: [], preempt: true, split: false,
+    last: msg('เครือข่ายวิทยาเขต A → D มีสองเส้นหลัก (บน A-B-D ต้นทุนต่ำ, ล่าง A-C-D) และทางเชื่อม B-C เล็กๆ 40 Mb/s · ยังไม่มีอุโมงค์จองแบนด์วิดท์'),
+  });
+  function shortest(links, ok) {
+    const dist = { [SRC]: 0 }, prev = {}, done = new Set();
+    for (;;) {
+      let u = null;
+      for (const n in dist) if (!done.has(n) && (u === null || dist[n] < dist[u])) u = n;
+      if (u === null) break;
+      done.add(u);
+      for (const l of links) {
+        if (!l.up || !ok(l)) continue;
+        const v = l.a === u ? l.b : l.b === u ? l.a : null;
+        if (v && !done.has(v) && dist[u] + l.cost < (dist[v] ?? Infinity)) { dist[v] = dist[u] + l.cost; prev[v] = { node: u, link: l.id }; }
+      }
+    }
+    if (dist[DST] == null) return null;
+    const nodes = [DST], links2 = [];
+    for (let n = DST; n !== SRC; n = prev[n].node) { links2.unshift(prev[n].link); nodes.unshift(prev[n].node); }
+    return { nodes, links: links2 };
+  }
+  const usedOn = (paths, lid) => paths.filter(p => p.links.includes(lid)).reduce((a, p) => a + p.bw, 0);
+  const freeOn = (s, l, keep = () => true, extra = []) => l.cap - usedOn(s.tunnels.filter(keep).flatMap(t => t.paths), l.id) - usedOn(extra, l.id);
+  // Constrained shortest path for `bw`, counting only tunnels that pass `keep`; optionally split in two.
+  function fit(s, bw, keep) {
+    const one = shortest(s.links, l => freeOn(s, l, keep) >= bw);
+    if (one) return [{ ...one, bw }];
+    if (!s.split) return null;
+    const p1 = shortest(s.links, l => freeOn(s, l, keep) >= bw / 2);
+    if (!p1) return null;
+    const first = { ...p1, bw: bw / 2 };
+    const p2 = shortest(s.links, l => freeOn(s, l, keep, [first]) >= bw / 2);
+    return p2 ? [first, { ...p2, bw: bw / 2 }] : null;
+  }
+  const setPaths = (s, id, paths, status) => ({ ...s, tunnels: s.tunnels.map(t => t.id === id ? { ...t, paths, status } : t) });
+  function place(s, id, allowPreempt, failStatus) {
+    const d = DEMANDS[id];
+    if (!s.tunnels.some(t => t.id === id)) s = { ...s, tunnels: [...s.tunnels, { id, ...d, paths: [], status: failStatus }] };
+    const others = t => t.id !== id;
+    let paths = fit(s, d.bw, others);
+    if (paths) return { s: setPaths(s, id, paths, 'up'), ok: true, victims: [] };
+    if (allowPreempt) paths = fit(s, d.bw, t => others(t) && t.prio <= d.prio);
+    if (!paths) return { s: setPaths(s, id, [], failStatus), ok: false, victims: [] };
+    // Bump the lowest-priority tunnels on each link until the new tunnel fits.
+    const victims = [];
+    const alive = t => others(t) && !victims.includes(t.id);
+    for (const lid of new Set(paths.flatMap(p => p.links))) {
+      const l = s.links.find(x => x.id === lid);
+      while (freeOn(s, l, alive) < usedOn(paths, lid)) {
+        victims.push(s.tunnels.filter(t => alive(t) && t.prio > d.prio && t.paths.some(p => p.links.includes(lid))).sort((a, b) => b.prio - a.prio)[0].id);
+      }
+    }
+    for (const v of victims) s = setPaths(s, v, [], 'down');
+    return { s: setPaths(s, id, paths, 'up'), ok: true, victims };
+  }
+  const show = paths => paths.map(p => p.nodes.join('→') + (paths.length > 1 ? ` (${p.bw})` : '')).join(' + ');
+  const pathsOf = (s, id) => s.tunnels.find(t => t.id === id).paths;
+  function reroute(s, ids) {
+    const notes = [];
+    for (const id of [...ids].sort((a, b) => DEMANDS[a].prio - DEMANDS[b].prio)) {
+      const r = place(s, id, false, 'down'); s = r.s;
+      notes.push(r.ok ? `${DEMANDS[id].name} ย้ายไป ${show(pathsOf(s, id))}` : `${DEMANDS[id].name} หาเส้นทางใหม่ไม่ได้ → ล่ม`);
+    }
+    return { s, notes };
+  }
+  const egressFree = s => s.links.filter(l => l.up && (l.a === SRC || l.b === SRC)).reduce((a, l) => a + freeOn(s, l), 0);
+  function request(s, id) {
+    const d = DEMANDS[id], cur = s.tunnels.find(t => t.id === id);
+    if (cur && cur.status === 'up') return { ...s, last: msg(`${d.name} ทำงานอยู่แล้ว`) };
+    const free = egressFree(s);
+    const r = place(s, id, s.preempt, 'rejected');
+    if (!r.ok) return { ...r.s, last: msg(`❌ ปฏิเสธ ${d.name} ${d.bw} Mb/s: ไม่มีเส้นทางที่ว่างพอทุกลิงก์${free >= d.bw ? ` — ทั้งที่แบนด์วิดท์ว่างรวมออกจาก A มี ${free} Mb/s!` : ''}${!s.preempt && s.tunnels.some(t => t.status === 'up' && t.prio > d.prio) ? ' (ปิดการแย่งลำดับความสำคัญอยู่)' : ''}`, true) };
+    if (!r.victims.length) return { ...r.s, last: msg(`✅ จอง ${d.name} ${d.bw} Mb/s → ${show(pathsOf(r.s, id))}`) };
+    const rr = reroute(r.s, r.victims);
+    return { ...rr.s, last: msg(`✅ ${d.name} (ความสำคัญ ${d.prio}) แย่งแบนด์วิดท์จาก ${r.victims.map(v => DEMANDS[v].name).join(', ')} → ${show(pathsOf(rr.s, id))} · ${rr.notes.join(' · ')}`, true) };
+  }
+  function failLink(s, lid) {
+    let next = { ...s, links: s.links.map(l => l.id === lid ? { ...l, up: false } : l) };
+    const hit = next.tunnels.filter(t => t.status === 'up' && t.paths.some(p => p.links.includes(lid))).sort((a, b) => a.prio - b.prio);
+    if (!hit.length) return { ...next, last: msg(`✂ ลิงก์ ${lid} ขาด — ไม่มีอุโมงค์ใช้อยู่ ไม่กระทบ`) };
+    for (const t of hit) next = setPaths(next, t.id, [], 'down');
+    const notes = [];
+    for (const t of hit) {
+      const r = place(next, t.id, next.preempt, 'down'); next = r.s;
+      if (!r.ok) { notes.push(`${t.name} หาเส้นทางใหม่ไม่ได้ → ล่ม`); continue; }
+      notes.push(`${t.name} ย้ายไป ${show(pathsOf(next, t.id))}${r.victims.length ? ` (แย่งจาก ${r.victims.map(v => DEMANDS[v].name).join(', ')})` : ''}`);
+      if (r.victims.length) { const rr = reroute(next, r.victims); next = rr.s; notes.push(...rr.notes); }
+    }
+    return { ...next, last: msg(`✂ ลิงก์ ${lid} ขาด → จัดเส้นทางใหม่ตามลำดับความสำคัญ: ${notes.join(' · ')}`, true) };
+  }
+  function restoreLink(s, lid) {
+    const next = { ...s, links: s.links.map(l => l.id === lid ? { ...l, up: true } : l) };
+    const down = next.tunnels.filter(t => t.status === 'down').map(t => t.id);
+    if (!down.length) return { ...next, last: msg(`🔧 ลิงก์ ${lid} กลับมา — อุโมงค์ที่ทำงานอยู่ไม่ย้ายกลับเอง (กันทราฟฟิกสะดุด)`) };
+    const rr = reroute(next, down);
+    return { ...rr.s, last: msg(`🔧 ลิงก์ ${lid} กลับมา → ลองต่ออุโมงค์ที่ล่มอีกครั้ง: ${rr.notes.join(' · ')}`) };
+  }
+  const setPreempt = (s, preempt) => ({ ...s, preempt, last: msg(preempt ? 'เปิดการแย่งตามลำดับความสำคัญ (0 สำคัญสุด, 7 ต่ำสุด)' : 'ปิดการแย่ง: ใครจองก่อนได้ก่อน', !preempt) });
+  const setSplit = (s, split) => ({ ...s, split, last: msg(split ? 'อนุญาตแบ่งอุโมงค์เป็น 2 เส้นทาง (ต้องจัดการลำดับแพ็กเก็ตที่ปลายทาง)' : 'อุโมงค์ต้องเป็นเส้นทางเดียว') });
+  const used = (s, l) => l.cap - freeOn(s, l);
+  return { DEMANDS, init, request, failLink, restoreLink, setPreempt, setSplit, show, used };
+})();
+
+// ---------- 3. Port-scan detection with Threshold Random Walk (Jung et al., IEEE S&P 2004) ----------
+const Trw = (() => {
+  const THETA0 = 0.8, THETA1 = 0.2;             // P(connection succeeds | benign), P(... | scanner)
+  const ON_FAIL = (1 - THETA1) / (1 - THETA0);  // ×4
+  const ON_OK = THETA1 / THETA0;                // ×0.25
+  const ETA1 = 0.99 / 0.01, ETA0 = 0.01 / 0.99; // detection 99%, false alarm 1%
+  const NAIVE = 10;                             // the usual "10 failures per window" rule
+  const LIVE = ['10.0.0.10', '10.0.0.12', '10.0.0.13', '10.0.0.11'];
+  const HOSTS = {
+    scanner: { ip: '203.0.113.5', name: 'สแกนเนอร์เร็ว', truth: 'scanner' },
+    student: { ip: '172.16.5.20', name: 'นักศึกษาหอพัก', truth: 'benign' },
+    broken: { ip: '172.16.5.33', name: 'แอปพังลองซ้ำ', truth: 'benign' },
+    stealth: { ip: '198.51.100.9', name: 'สแกนเนียน', truth: 'scanner' },
+    disguise: { ip: '198.51.100.77', name: 'ทำตัวดีก่อนสแกน', truth: 'scanner' },
+  };
+  // Which local addresses each host tries on its c-th burst.
+  const PLAN = {
+    scanner: c => [0, 1, 2, 3, 4].map(i => `10.0.0.${100 + 5 * c + i}`),
+    student: () => LIVE,
+    broken: () => Array(6).fill('10.0.0.50'),
+    stealth: c => [LIVE[c % 4], `10.0.0.${150 + 2 * c}`, `10.0.0.${151 + 2 * c}`],
+    disguise: c => c === 0 ? LIVE : [0, 1, 2, 3, 4, 5].map(i => `10.0.0.${200 + 6 * (c - 1) + i}`),
+  };
+  const blank = () => ({ seen: [], ok: 0, fail: 0, lambda: 1, verdict: 'pending', cleared: 0, windowFails: 0, naive: false, dropped: 0, bursts: 0 });
+  const init = () => ({
+    rearm: false, window: 1,
+    hosts: Object.fromEntries(Object.keys(HOSTS).map(k => [k, blank()])),
+    last: msg(`เครือข่ายมีเซิร์ฟเวอร์จริง 4 เครื่อง (${LIVE.join(', ')}) ที่อยู่อื่นต่อไม่ติด · TRW ปรับค่า Λ ทุกครั้งที่โฮสต์ติดต่อปลายทาง "ใหม่": ล้มเหลว ×4 สำเร็จ ×0.25 · Λ ≥ 99 = สแกนเนอร์ (บล็อก) · Λ ≤ 0.0101 = ปกติ`),
+  });
+  function attempt(rearm, h, dst) {
+    const ok = LIVE.includes(dst);
+    const n = { ...h };
+    if (!ok) { n.windowFails++; if (n.windowFails >= NAIVE) n.naive = true; }
+    if (n.verdict === 'scanner') { n.dropped++; return n; }
+    if (n.verdict === 'benign' || n.seen.includes(dst)) return n; // only first contact to each address counts
+    n.seen = [...n.seen, dst];
+    if (ok) n.ok++; else n.fail++;
+    n.lambda *= ok ? ON_OK : ON_FAIL;
+    if (n.lambda >= ETA1) n.verdict = 'scanner';
+    else if (n.lambda <= ETA0) { if (rearm) { n.lambda = 1; n.cleared++; } else n.verdict = 'benign'; }
+    return n;
+  }
+  function burst(s, key) {
+    const before = s.hosts[key], dsts = PLAN[key](before.bursts);
+    let h = before;
+    for (const d of dsts) h = attempt(s.rearm, h, d);
+    h = { ...h, bursts: h.bursts + 1 };
+    const okN = dsts.filter(d => LIVE.includes(d)).length;
+    const notes = [];
+    if (h.verdict !== before.verdict) notes.push(h.verdict === 'scanner' ? '🚫 TRW: ตัดสินว่าเป็นสแกนเนอร์ บล็อก' : '✔ TRW: ตัดสินว่าปกติ เลิกติดตาม');
+    if (h.cleared > before.cleared) notes.push('✔ TRW: ผ่านรอบนี้ว่าปกติ เริ่มนับใหม่ (ยังติดตามต่อ)');
+    if (h.naive && !before.naive) notes.push(`🚫 เกณฑ์ธรรมดา: ล้มเหลวครบ ${NAIVE} ครั้งในหน้าต่างนี้ บล็อก`);
+    const wrong = (h.verdict === 'scanner' || h.naive) && HOSTS[key].truth === 'benign';
+    return { ...s, hosts: { ...s.hosts, [key]: h }, last: msg(`${HOSTS[key].name} ลองต่อ ${dsts.length} ครั้ง (สำเร็จ ${okN} ล้มเหลว ${dsts.length - okN}, ปลายทางไม่ซ้ำ ${new Set(dsts).size}) · ${notes.join(' · ') || 'ยังไม่มีใครตัดสิน'}${wrong ? ' · ⚠ บล็อกคนบริสุทธิ์!' : ''}`, wrong || notes.length === 0 && HOSTS[key].truth === 'scanner' && h.verdict !== 'scanner') };
+  }
+  const newWindow = s => ({ ...s, window: s.window + 1, hosts: Object.fromEntries(Object.entries(s.hosts).map(([k, h]) => [k, { ...h, windowFails: 0 }])), last: msg(`⏱ หน้าต่างเวลาที่ ${s.window + 1}: เกณฑ์ธรรมดาเริ่มนับใหม่ (TRW จำต่อ)`) });
+  const setRearm = (s, rearm) => ({ ...s, rearm, last: msg(rearm ? 'เมื่อ TRW ตัดสินว่าปกติ จะรีเซ็ต Λ แล้วติดตามต่อ' : 'เมื่อ TRW ตัดสินว่าปกติ จะเลิกติดตามโฮสต์นั้น (แบบในงานวิจัยต้นฉบับ)') });
+  const fmt = x => x >= 1 ? String(Math.round(x * 100) / 100) : x.toPrecision(2);
+  return { HOSTS, ETA1, ETA0, NAIVE, init, burst, newWindow, setRearm, fmt };
+})();
+
+// ---------- 4. NAT traversal for P2P / IoT (ICE: STUN hole punching → TURN relay) ----------
+const Ice = (() => {
+  // RFC 4787 terms: mapping EIM = same external port for every destination, APDM = new port per destination.
+  // Filtering EIF = anyone may send in, ADF = only IPs we sent to, APDF = only exact IP:port we sent to.
+  const TYPES = {
+    public: { label: 'ไม่มี NAT', mapping: 'none', filter: 'none' },
+    full: { label: 'Full cone', mapping: 'EIM', filter: 'EIF' },
+    restricted: { label: 'Restricted', mapping: 'EIM', filter: 'ADF' },
+    port: { label: 'Port-restricted', mapping: 'EIM', filter: 'APDF' },
+    symmetric: { label: 'Symmetric', mapping: 'APDM', filter: 'APDF' },
+  };
+  const PEERS = { A: { ip: '203.0.113.10', base: 40000 }, B: { ip: '198.51.100.20', base: 50000 } };
+  const STUN = '192.0.2.1:3478';
+  const ep = (ip, port) => `${ip}:${port}`;
+  const ipOf = e => e.split(':')[0];
+  const portOf = e => Number(e.split(':')[1]);
+  const newNat = (peer, type) => ({ ip: PEERS[peer].ip, type, next: PEERS[peer].base, table: [] });
+  function outbound(nat, dst) {
+    const t = TYPES[nat.type];
+    if (t.mapping === 'none') return { nat, port: 5000 };
+    let table = nat.table, next = nat.next;
+    let m = t.mapping === 'EIM' ? table[0] : table.find(x => x.dst === dst);
+    if (!m) { m = { port: next++, dst, perms: [] }; table = [...table, m]; }
+    const updated = { ...m, perms: m.perms.includes(dst) ? m.perms : [...m.perms, dst] };
+    return { nat: { ...nat, next, table: table.map(x => x === m ? updated : x) }, port: m.port };
+  }
+  function inbound(nat, src, port) {
+    const t = TYPES[nat.type];
+    if (t.mapping === 'none') return 'pass';
+    const m = nat.table.find(x => x.port === port);
+    if (!m) return 'nomap';
+    if (t.filter === 'EIF') return 'pass';
+    if (t.filter === 'ADF') return m.perms.some(p => ipOf(p) === ipOf(src)) ? 'pass' : 'filtered';
+    return m.perms.includes(src) ? 'pass' : 'filtered';
+  }
+  const VERDICT = { pass: '✅ ผ่าน', nomap: '❌ NAT ปลายทางไม่มีช่องนี้', filtered: '❌ NAT ปลายทางกรองทิ้ง' };
+  // Both peers learn their public address from STUN, swap it over signaling, then fire at each other.
+  // A peer that receives a check replies to the address it actually came from (peer-reflexive).
+  function punch(typeA, typeB) {
+    const nats = { A: newNat('A', typeA), B: newNat('B', typeB) };
+    const log = [], srflx = {};
+    for (const p of ['A', 'B']) { const r = outbound(nats[p], STUN); nats[p] = r.nat; srflx[p] = ep(nats[p].ip, r.port); log.push(`${p} ถาม STUN → ที่อยู่สาธารณะของ ${p} คือ ${srflx[p]}`); }
+    log.push('แลกที่อยู่กันผ่านเซิร์ฟเวอร์ signaling แล้วยิงหากันพร้อมๆ กัน');
+    const target = { A: srflx.B, B: srflx.A }, got = { A: false, B: false };
+    for (let round = 1; round <= 3 && !(got.A && got.B); round++) {
+      for (const [p, q] of [['A', 'B'], ['B', 'A']]) {
+        const r = outbound(nats[p], target[p]); nats[p] = r.nat;
+        const src = ep(nats[p].ip, r.port);
+        const res = inbound(nats[q], src, portOf(target[p]));
+        log.push(`รอบ ${round}: ${p} ${src} → ${target[p]} ${VERDICT[res]}`);
+        if (res === 'pass') { got[q] = true; target[q] = src; }
+      }
+    }
+    return { ok: got.A && got.B, nats, log };
+  }
+  const init = () => ({ a: 'port', b: 'port', turn: true, keepalive: false, conn: null, sent: 0, last: msg('แล็ปท็อป A (หอพัก) อยากดูภาพสดจากกล้อง IoT B (บ้าน) แบบ P2P · ทั้งคู่อยู่หลัง NAT คนละเครือข่าย') });
+  const setType = (s, side, type) => ({ ...s, [side]: type, conn: null, last: msg(`${side === 'a' ? 'A' : 'B'} อยู่หลัง NAT แบบ ${TYPES[type].label} (mapping ${TYPES[type].mapping}, filtering ${TYPES[type].filter}) · ต้องเชื่อมต่อใหม่`) });
+  function connect(s) {
+    const r = punch(s.a, s.b);
+    const mode = r.ok ? 'direct' : s.turn ? 'relay' : 'failed';
+    const text = { direct: '✅ เจาะ NAT สำเร็จ ต่อตรงแบบ P2P', relay: '↪ เจาะ NAT ไม่สำเร็จ → ใช้ TURN relay (ต่อได้ แต่ทุกไบต์วิ่งผ่านเซิร์ฟเวอร์ เพิ่มดีเลย์และค่าแบนด์วิดท์)', failed: '❌ เจาะ NAT ไม่สำเร็จ และไม่มี TURN → ต่อไม่ได้เลย' }[mode];
+    return { ...s, conn: { mode, nats: r.nats, log: r.log, stale: false }, last: msg(text, mode !== 'direct') };
+  }
+  function idle(s) {
+    if (!s.conn || s.conn.mode === 'failed') return { ...s, last: msg('ยังไม่ได้เชื่อมต่อ — เวลาผ่านไปเฉยๆ') };
+    if (s.keepalive) return { ...s, last: msg('เงียบ 2 นาที แต่ส่ง keepalive ทุก 15 วินาที → ช่องใน NAT ยังเปิดอยู่') };
+    const nats = Object.fromEntries(Object.entries(s.conn.nats).map(([k, n]) => [k, { ...n, table: [] }]));
+    return { ...s, conn: { ...s.conn, nats, stale: true }, last: msg('เงียบ 2 นาที ไม่มี keepalive → NAT ลบช่องที่เจาะไว้ (หมดอายุ 30 วินาที) แต่ทั้งสองฝั่งยังคิดว่าต่อกันอยู่', true) };
+  }
+  function send(s) {
+    if (!s.conn || s.conn.mode === 'failed') return { ...s, last: msg('ยังไม่ได้เชื่อมต่อ ส่งไม่ได้', true) };
+    if (s.conn.stale && inbound(s.conn.nats.A, 'x:1', 40000) !== 'pass') return { ...s, last: msg('📷 B ส่งภาพหา A → ❌ NAT ของ A ไม่มีช่องรับแล้ว ภาพหายเงียบ ต้อง ICE restart', true) };
+    return { ...s, sent: s.sent + 1, last: msg(`📷 ภาพถึง A ${s.conn.mode === 'direct' ? 'แบบตรง P2P' : 'ผ่าน TURN relay'}${s.conn.stale ? ' (A ไม่มี NAT จึงรับได้แม้เงียบไปนาน)' : ''}`) };
+  }
+  const setTurn = (s, turn) => ({ ...s, turn, conn: null, last: msg(turn ? 'มีเซิร์ฟเวอร์ TURN สำรอง' : 'ไม่มีเซิร์ฟเวอร์ TURN (ประหยัดค่าเซิร์ฟเวอร์)', !turn) });
+  const setKeepalive = (s, keepalive) => ({ ...s, keepalive, last: msg(keepalive ? 'ส่ง keepalive ทุก 15 วินาที' : 'ไม่ส่ง keepalive (แอปเขียนเอง)', !keepalive) });
+  const matrix = () => Object.keys(TYPES).map(a => Object.keys(TYPES).map(b => punch(a, b).ok));
+  return { TYPES, init, setType, connect, idle, send, setTurn, setKeepalive, matrix };
+})();
+
+// ---------- 5. Delay-tolerant network for flood relief (Binary Spray-and-Wait, Spyropoulos et al. 2005) ----------
+const Dtn = (() => {
+  const NODES = { S: 'ศูนย์พักพิง', B1: 'เรืออาสา 1', B2: 'เรืออาสา 2', D: 'โดรน', B3: 'เรือกู้ภัย 3', R: 'ศูนย์บัญชาการ' };
+  const SRC = 'S', DEST = 'R', COPIES = 4, TTL = 6, CAP = 2;
+  const PROTOCOLS = { direct: 'ถือไว้ส่งเอง (direct)', spray: `Spray-and-Wait (${COPIES} สำเนา)`, epidemic: 'Epidemic (แจกทุกคนที่เจอ)' };
+  const cap = id => id === SRC || id === DEST ? Infinity : CAP;
+  const init = () => ({
+    t: 0, protocol: 'spray', ack: false, seq: 0, tx: 0, refused: 0, expired: 0, delivered: [],
+    nodes: Object.fromEntries(Object.keys(NODES).map(id => [id, { buf: [], acked: [] }])),
+    last: msg('น้ำท่วม เสาสัญญาณล่ม ไม่มีเส้นทางต่อเนื่องจากศูนย์พักพิงถึงศูนย์บัญชาการ · ข้อความต้องฝากไปกับเรือ/โดรนที่ผ่านไปมา (store-carry-forward) · เรือ/โดรนเก็บได้ลำละ 2 ข้อความ'),
+  });
+  const ackSet = (s, id) => id === DEST ? s.delivered.map(d => d.id) : s.nodes[id].acked;
+  const put = (s, id, patch) => ({ ...s, nodes: { ...s.nodes, [id]: { ...s.nodes[id], ...patch } } });
+  function create(s) {
+    const id = `m${s.seq + 1}`;
+    return { ...put(s, SRC, { buf: [...s.nodes[SRC].buf, { id, tokens: COPIES, born: s.t, path: [SRC] }] }), seq: s.seq + 1, last: msg(`✉ ศูนย์พักพิงเขียนข้อความ ${id} "ขอยาและน้ำดื่ม" (หมดอายุใน ${TTL} ชม.)`) };
+  }
+  // Delivered-message ids spread node to node like gossip, and copies of them are purged.
+  function mergeAcks(s, a, b, notes) {
+    const all = [...new Set([...ackSet(s, a), ...ackSet(s, b)])];
+    for (const id of [a, b]) {
+      if (id === DEST) continue;
+      const purge = s.nodes[id].buf.filter(m => all.includes(m.id)).map(m => m.id);
+      if (purge.length) notes.push(`🧹 ${id} ลบ ${purge.join(', ')} ที่ส่งถึงแล้ว`);
+      s = put(s, id, { acked: all, buf: s.nodes[id].buf.filter(m => !all.includes(m.id)) });
+    }
+    return s;
+  }
+  function pass(s, a, b, notes) {
+    for (const m of s.nodes[a].buf) {
+      if (b === DEST) {
+        const dup = s.delivered.some(d => d.id === m.id);
+        s = { ...put(s, a, { buf: s.nodes[a].buf.filter(x => x.id !== m.id) }), tx: s.tx + 1, delivered: dup ? s.delivered : [...s.delivered, { id: m.id, at: s.t, path: [...m.path, b] }] };
+        notes.push(dup ? `${a} ส่ง ${m.id} ซ้ำ (ศูนย์ได้รับไปแล้ว เปลืองแบตเปล่า)` : `🎯 ${m.id} ถึงศูนย์บัญชาการ ชม.ที่ ${s.t} (${[...m.path, b].join('→')})`);
+        continue;
+      }
+      const B = s.nodes[b];
+      if (s.protocol === 'direct' || B.buf.some(x => x.id === m.id) || B.acked.includes(m.id)) continue;
+      if (s.protocol === 'spray' && m.tokens <= 1) { notes.push(`${a} มี ${m.id} เหลือ 1 สำเนา → รอส่งถึงศูนย์เองเท่านั้น`); continue; }
+      if (B.buf.length >= cap(b)) { s = { ...s, refused: s.refused + 1 }; notes.push(`❌ ${b} บัฟเฟอร์เต็ม รับ ${m.id} ไม่ได้`); continue; }
+      const give = s.protocol === 'spray' ? Math.floor(m.tokens / 2) : m.tokens;
+      s = put(s, a, { buf: s.nodes[a].buf.map(x => x.id === m.id ? { ...x, tokens: s.protocol === 'spray' ? m.tokens - give : m.tokens } : x) });
+      s = { ...put(s, b, { buf: [...B.buf, { ...m, tokens: give, path: [...m.path, b] }] }), tx: s.tx + 1 };
+      notes.push(`${a} → ${b}: ${m.id}${s.protocol === 'spray' ? ` (${give} สำเนา)` : ''}${s.delivered.some(d => d.id === m.id) ? ' ⚠ ถึงศูนย์ไปแล้ว สำเนานี้สูญเปล่า' : ''}`);
+    }
+    return s;
+  }
+  function contact(s, a, b) {
+    const notes = [];
+    if (s.ack) s = mergeAcks(s, a, b, notes);
+    s = pass(s, a, b, notes);
+    s = pass(s, b, a, notes);
+    if (s.ack) s = mergeAcks(s, a, b, notes);
+    const bad = notes.some(n => n.startsWith('❌') || n.includes('⚠'));
+    return { ...s, last: msg(`🤝 ${NODES[a]} พบ ${NODES[b]}: ${notes.join(' · ') || 'ไม่มีอะไรต้องส่ง'}`, bad) };
+  }
+  function tick(s) {
+    const t = s.t + 1, gone = new Set();
+    let expired = 0;
+    const nodes = Object.fromEntries(Object.entries(s.nodes).map(([id, n]) => [id, { ...n, buf: n.buf.filter(m => { const keep = t - m.born < TTL; if (!keep) { expired++; gone.add(m.id); } return keep; }) }]));
+    const lost = [...gone].filter(id => !s.delivered.some(d => d.id === id));
+    return { ...s, t, nodes, expired: s.expired + expired, last: msg(`⏳ ชั่วโมงที่ ${t}${gone.size ? ` · ${[...gone].join(', ')} หมดอายุ ลบ ${expired} สำเนา${lost.length ? ` — ${lost.join(', ')} ไม่เคยถึงศูนย์!` : ''}` : ''}`, lost.length > 0) };
+  }
+  const setProtocol = (s, protocol) => ({ ...s, protocol, last: msg(`ใช้โปรโตคอล ${PROTOCOLS[protocol]}`) });
+  const setAck = (s, ack) => ({ ...s, ack, last: msg(ack ? 'เปิด ack: รายชื่อข้อความที่ถึงศูนย์แล้วจะกระจายต่อเมื่อเจอกัน และลบสำเนาทิ้ง' : 'ปิด ack') });
+  const copies = s => Object.values(s.nodes).reduce((a, n) => a + n.buf.length, 0);
+  return { NODES, PROTOCOLS, CAP, COPIES, TTL, cap, init, create, contact, tick, setProtocol, setAck, copies };
+})();
+</script>
+
+<!-- ============================================================
+     PAGE — throwaway shell over the logic above.
+     ============================================================ -->
+<script>
+const proj = [];
+const tag = (cls, text) => `<span class="tag ${cls}">${text}</span>`;
+
+// ---- 1 Raft ----
+const raftActs = {
+  writeN1: { label: '✍ เขียนกฎผ่าน N1', run: s => Raft.write(s, 'N1') },
+  writeN2: { label: '✍ เขียนกฎผ่าน N2', run: s => Raft.write(s, 'N2') },
+  writeN3: { label: '✍ เขียนกฎผ่าน N3', run: s => Raft.write(s, 'N3') },
+  heartbeat: { label: '💓 ผู้นำส่ง heartbeat', run: Raft.heartbeat },
+  partition: { label: '✂ แยกเครือข่าย {N1,N2} | {N3,N4,N5}', run: Raft.partition },
+  heal: { label: '🔗 ต่อเครือข่ายกลับ', run: Raft.heal },
+};
+for (const id of Raft.IDS) raftActs['timeout' + id] = { label: `⏰ ${id} หมดเวลา → ขอเป็นผู้นำ`, run: s => Raft.timeout(s, id) };
+for (const id of ['N1', 'N5']) {
+  raftActs['crash' + id] = { label: `💥 ${id} ดับ`, run: s => Raft.crash(s, id) };
+  raftActs['recover' + id] = { label: `🔌 ${id} กลับมา`, run: s => Raft.recover(s, id) };
+}
+proj.push({
+  title: '1 · คลัสเตอร์คอนโทรลเลอร์ SDN ด้วย Raft',
+  question: 'ถ้าคอนโทรลเลอร์ SDN ดับหรือเครือข่ายแยกเป็นสองฝั่ง (split brain) คลัสเตอร์ 5 เครื่องยังรับประกันได้ไหมว่าสวิตช์จะไม่ได้รับกฎสองชุดที่ขัดกัน? และเครื่องที่ log ตกยุคจะขึ้นเป็นผู้นำได้ไหม?',
+  pitch: 'ทำไมกรรมการสนใจ: ONOS และ OpenDaylight ใช้ Raft จริงเพื่อให้ control plane ไม่มีจุดตายเดียว · ต่อยอด: รัน etcd/ONOS 3–5 โหนดบน Mininet, ใช้ Jepsen-style fault injection วัดว่ากฎหายหรือซ้ำไหม, เทียบเวลาเลือกตั้งกับเวลาตัดลิงก์',
+  init: Raft.init, actions: raftActs,
+  view: s => {
+    const leaders = s.nodes.filter(n => n.up && n.role === 'leader');
+    const split = s.nodes.some(n => n.group === 'B');
+    const bad = Raft.conflicts(s);
+    const role = { leader: '👑 ผู้นำ', follower: 'ผู้ตาม', candidate: 'ผู้สมัคร' };
+    return `<p>${split ? tag('bad-t', 'เครือข่ายแยก {N1,N2} | {N3,N4,N5}') : tag('ok', 'เครือข่ายต่อกันครบ')} · เครื่องที่คิดว่าตัวเองเป็นผู้นำ: <b>${leaders.map(n => `${n.id} (สมัย ${n.term})`).join(', ') || 'ไม่มี'}</b>${leaders.length > 1 ? ' <span class="warn-t">— มีสองคน! แต่มีเพียงคนที่ได้เสียงข้างมากเท่านั้นที่ยืนยันกฎได้</span>' : ''}</p>` +
+      '<table><tr><th>เครื่อง</th><th>สถานะ</th><th>บทบาท</th><th>สมัย</th><th>log (เขียว = ยืนยันแล้ว, ส้ม = ยังไม่ยืนยัน)</th></tr>' +
+      s.nodes.map(n => `<tr><td>${n.id}</td><td>${n.up ? (split ? `ฝั่ง ${n.group === 'A' ? 'ซ้าย' : 'ขวา'}` : 'ทำงาน') : '<span class="bad-t">ดับ</span>'}</td><td>${role[n.role]}</td><td>${n.term}</td><td>${n.log.map((e, i) => tag(i < n.commit ? 'ok' : 'warn-t', `${e.cmd}·${e.term}`)).join(' ') || '<span class="muted">ว่าง</span>'}</td></tr>`).join('') +
+      `</table><h3>กฎที่ลงสวิตช์แล้ว</h3><p>${Raft.switchRules(s).join(', ') || '<span class="muted">ยังไม่มี</span>'}</p><h3>ความปลอดภัย</h3>` +
+      (bad.length ? `<p class="bad-t">❌ เครื่อง ${bad.join(', ')} เห็นกฎที่ยืนยันแล้วไม่ตรงกัน!</p>` : '<p class="ok">✅ ทุกเครื่องเห็นกฎที่ยืนยันแล้วตรงกัน — ไม่มี "สองความจริง"</p>');
+  },
+  scenarios: [
+    { title: 'ผู้นำดับ', desc: 'N1 ดับหลังยืนยันกฎ#1 — คลัสเตอร์ต้องเลือกผู้นำใหม่เองโดยไม่ทำกฎหาย แล้ว N1 กลับมาตามทัน', steps: ['writeN1', 'crashN1', 'writeN2', 'timeoutN2', 'writeN2', 'recoverN1', 'heartbeat'] },
+    { title: 'Split brain', desc: 'เครือข่ายแยก N1 ยังคิดว่าตัวเองเป็นผู้นำและรับการเขียน ขณะที่อีกฝั่งเลือกผู้นำใหม่ — ดูว่ากฎของฝั่งไหนรอด และทำไมไม่มีใครเสียหาย', steps: ['writeN1', 'partition', 'writeN1', 'timeoutN3', 'writeN3', 'heal', 'heartbeat'] },
+    { title: 'log ตกยุคชนะไม่ได้', desc: 'N5 ดับไปตอนมีกฎใหม่ 2 ข้อ กลับมาแล้วรีบขอเป็นผู้นำ — ควรแพ้ แต่สังเกตว่าผู้นำเดิมถูกรบกวนจนต้องลงจากตำแหน่ง', steps: ['crashN5', 'writeN1', 'writeN1', 'recoverN5', 'timeoutN5', 'writeN1', 'timeoutN2'] },
+    { title: 'ฝั่งเสียงข้างน้อย', desc: 'ฝั่งที่มีแค่ 2 เครื่องพยายามเลือกผู้นำใหม่เอง — ทำไม่ได้ ระบบหยุดรับการเขียนดีกว่าเขียนผิด', steps: ['partition', 'crashN1', 'timeoutN2', 'writeN2', 'timeoutN3', 'writeN3'] },
+  ],
+});
+
+// ---- 2 TE ----
+const teActs = {};
+for (const [id, d] of Object.entries(Te.DEMANDS)) teActs['req_' + id] = { label: `📦 ขอ ${d.name} ${d.bw} Mb/s (ความสำคัญ ${d.prio})`, run: s => Te.request(s, id) };
+Object.assign(teActs, {
+  failAB: { label: '✂ ตัดลิงก์ A-B', run: s => Te.failLink(s, 'A-B') },
+  fixAB: { label: '🔧 ต่อลิงก์ A-B', run: s => Te.restoreLink(s, 'A-B') },
+  failCD: { label: '✂ ตัดลิงก์ C-D', run: s => Te.failLink(s, 'C-D') },
+  preemptOff: { label: '🔓 ปิดการแย่งตามความสำคัญ', run: s => Te.setPreempt(s, false) },
+  splitOn: { label: '🔀 อนุญาตแบ่ง 2 เส้นทาง', run: s => Te.setSplit(s, true) },
+});
+proj.push({
+  title: '2 · จองแบนด์วิดท์รับประกัน (Traffic Engineering)',
+  question: 'เมื่อจองแบนด์วิดท์ให้บริการสำคัญ (ผ่าตัดทางไกล) บนเครือข่ายที่มีงานอื่นจองไว้แล้ว ระบบควรปฏิเสธ แย่งจากงานสำคัญน้อยกว่า หรือแบ่งเส้นทาง? และเมื่อลิงก์ขาด ใครควรได้เส้นทางก่อน?',
+  pitch: 'ทำไมกรรมการสนใจ: เป็นหัวใจของ MPLS-TE / Segment Routing ที่ ISP และ Google B4 ใช้ และของ network slicing ใน 5G · ต่อยอด: เขียนเป็นแอป ONOS หรือ PCE ที่คุยกับ FRRouting, วัด jitter ของวิดีโอจริงขณะลิงก์ขาด, เปลี่ยน greedy เป็น ILP แล้วเทียบผล',
+  init: Te.init, actions: teActs,
+  view: s => {
+    const st = { up: tag('ok', 'ทำงาน'), down: tag('bad-t', 'ล่ม'), rejected: tag('warn-t', 'ถูกปฏิเสธ') };
+    return `<p>การแย่งตามความสำคัญ: ${s.preempt ? tag('ok', 'เปิด') : tag('warn-t', 'ปิด')} · แบ่ง 2 เส้นทาง: ${s.split ? tag('ok', 'อนุญาต') : tag('', 'ไม่อนุญาต')}</p>` +
+      '<table><tr><th>ลิงก์</th><th>ต้นทุน</th><th>ใช้ / ความจุ (Mb/s)</th><th>สถานะ</th></tr>' +
+      s.links.map(l => { const u = Te.used(s, l); return `<tr><td>${l.id}</td><td>${l.cost}</td><td class="${u >= l.cap ? 'warn-t' : ''}">${u} / ${l.cap}</td><td>${l.up ? tag('ok', 'ใช้ได้') : tag('bad-t', 'ขาด')}</td></tr>`; }).join('') +
+      '</table><h3>อุโมงค์ A → D</h3>' + (s.tunnels.length ? '<table><tr><th>บริการ</th><th>Mb/s</th><th>ความสำคัญ</th><th>เส้นทาง</th><th>สถานะ</th></tr>' +
+      [...s.tunnels].sort((a, b) => a.prio - b.prio).map(t => `<tr><td>${t.name}</td><td>${t.bw}</td><td>${t.prio}</td><td>${t.paths.length ? Te.show(t.paths) : '—'}</td><td>${st[t.status]}</td></tr>`).join('') + '</table>' : '<p class="muted">ยังไม่มี</p>');
+  },
+  scenarios: [
+    { title: 'แย่งตามความสำคัญ', desc: 'ลิงก์ถูกจองโดยงานสำรองข้อมูลและระบบลงทะเบียน แล้วการผ่าตัดทางไกลเข้ามา — ใครต้องหลีก และหลีกแล้วไปไหน?', steps: ['req_backup', 'req_erp', 'req_tele'] },
+    { title: 'ใครจองก่อนได้ก่อน', desc: 'ทำซ้ำแต่ปิดการแย่ง — การผ่าตัดถูกปฏิเสธทั้งที่แบนด์วิดท์รวมยังพอ', steps: ['preemptOff', 'req_backup', 'req_erp', 'req_tele'] },
+    { title: 'ลิงก์ขาด', desc: 'เส้นหลักของการผ่าตัดขาด — ระบบย้ายงานสำคัญก่อน แม้ต้องทำให้งานอื่นล่ม แล้วลิงก์กลับมา', steps: ['req_tele', 'req_erp', 'failAB', 'fixAB'] },
+    { title: 'แบนด์วิดท์พอแต่แตกกระจาย', desc: 'ถ่ายทอดสด 120 Mb/s ไม่มีเส้นไหนรับไหวคนเดียว ทั้งที่ว่างรวม 200 — ลองอนุญาตให้แบ่งเส้นทาง', steps: ['req_live', 'splitOn', 'req_live', 'req_tele'] },
+  ],
+});
+
+// ---- 3 TRW ----
+const H3 = Trw.HOSTS;
+const trwActs = {};
+for (const [k, h] of Object.entries(H3)) trwActs[k] = { label: `${h.truth === 'scanner' ? '🕵' : '🙂'} ${h.name} ลองต่อ`, run: s => Trw.burst(s, k) };
+Object.assign(trwActs, {
+  window: { label: '⏱ หน้าต่างเวลาใหม่', run: Trw.newWindow },
+  rearm: { label: '🔁 ตัดสินว่าปกติแล้วยังติดตามต่อ', run: s => Trw.setRearm(s, true) },
+});
+proj.push({
+  title: '3 · จับการสแกนพอร์ตด้วย TRW',
+  question: 'แยกผู้สแกนออกจากผู้ใช้ปกติด้วยการทดสอบสมมติฐานแบบลำดับ (Threshold Random Walk) ได้เร็วและแม่นกว่าเกณฑ์ "ล้มเหลว 10 ครั้ง" แค่ไหน? แล้วผู้โจมตีที่ทำตัวดีก่อนจะหลอกมันได้ไหม?',
+  pitch: 'ทำไมกรรมการสนใจ: TRW จับสแกนเนอร์ได้ใน 4–5 ครั้งด้วยคณิตศาสตร์ที่พิสูจน์อัตราผิดพลาดได้ ใช้ใน Zeek/Bro จริง · ต่อยอด: เขียนเป็นสคริปต์ Zeek หรือ eBPF, ทดสอบกับ nmap -T0..T5 และชุดข้อมูล CIC-IDS, วัดเวลาจับเทียบ Snort',
+  init: Trw.init, actions: trwActs,
+  view: s => `<p class="muted">หน้าต่างเวลาที่ ${s.window} · TRW บล็อกเมื่อ Λ ≥ ${Trw.ETA1} · ปล่อยเมื่อ Λ ≤ ${Trw.ETA0.toFixed(4)} · เมื่อตัดสินว่าปกติ: ${s.rearm ? 'รีเซ็ตแล้วติดตามต่อ' : 'เลิกติดตาม'}</p>` +
+    '<table><tr><th>โฮสต์</th><th>จริงๆ เป็น</th><th>ปลายทางใหม่ (สำเร็จ/ล้มเหลว)</th><th>Λ</th><th>TRW</th><th>ล้มเหลวในหน้าต่าง</th><th>เกณฑ์ธรรมดา</th></tr>' +
+    Object.entries(H3).map(([k, info]) => {
+      const h = s.hosts[k], scan = info.truth === 'scanner';
+      const trw = h.verdict === 'scanner' ? tag(scan ? 'ok' : 'bad-t', 'บล็อก') : h.verdict === 'benign' ? tag(scan ? 'bad-t' : 'ok', 'ปกติ (เลิกติดตาม)') : tag('', h.cleared ? `กำลังดู (ผ่าน ${h.cleared} รอบ)` : 'กำลังดู');
+      const naive = h.naive ? tag(scan ? 'ok' : 'bad-t', 'บล็อก') : tag('', 'ปล่อย');
+      return `<tr><td>${info.name}<br><span class="muted">${info.ip}</span></td><td>${scan ? 'ผู้สแกน' : 'ปกติ'}</td><td>${h.seen.length} (${h.ok}/${h.fail})</td><td>${Trw.fmt(h.lambda)}</td><td>${trw}</td><td>${h.windowFails}/${Trw.NAIVE}</td><td>${naive}</td></tr>`;
+    }).join('') + '</table><p class="muted" style="margin-top:8px">ป้ายสีเขียว = ตัดสินถูก · สีแดง = ตัดสินผิด (บล็อกคนบริสุทธิ์ หรือปล่อยผู้สแกน)</p>',
+  scenarios: [
+    { title: 'เร็วกว่าเกณฑ์ธรรมดา', desc: 'สแกนเนอร์ยิง 5 ที่อยู่ — TRW บล็อกตั้งแต่ครั้งที่ 4 ขณะที่เกณฑ์ 10 ครั้งยังไม่ขยับ ส่วนนักศึกษาถูกปล่อยหลังต่อสำเร็จ 4 ครั้ง', steps: ['scanner', 'student'] },
+    { title: 'แอปพังไม่ใช่ผู้สแกน', desc: 'โปรแกรมพยายามต่อเครื่องพิมพ์ที่ปิดอยู่ซ้ำๆ — เกณฑ์ธรรมดาบล็อกผิด แต่ TRW นับเฉพาะปลายทางใหม่', steps: ['broken', 'broken'] },
+    { title: 'สแกนเนียนข้ามหน้าต่าง', desc: 'ยิงทีละน้อยปนการเข้าเว็บจริง เกณฑ์ธรรมดาที่รีเซ็ตทุกหน้าต่างไม่มีวันจับได้ แต่ TRW จำสะสม', steps: ['stealth', 'window', 'stealth', 'window', 'stealth', 'window', 'stealth'] },
+    { title: 'ทำตัวดีก่อนสแกน', desc: 'ผู้โจมตีเข้าเซิร์ฟเวอร์จริงทั้ง 4 ก่อน TRW ตัดสินว่าปกติแล้วเลิกดู จากนั้นค่อยสแกน — แล้วลองแบบติดตามต่อ', steps: ['disguise', 'disguise', 'disguise'] },
+    { title: 'ปิดช่องโหว่: ติดตามต่อ', desc: 'ทำซ้ำสถานการณ์ก่อนหน้า แต่เมื่อผ่านว่าปกติให้รีเซ็ตแล้วดูต่อ', steps: ['rearm', 'disguise', 'disguise'] },
+  ],
+});
+
+// ---- 4 ICE ----
+const iceActs = {};
+for (const [k, t] of Object.entries(Ice.TYPES)) {
+  iceActs['a_' + k] = { label: `A: ${t.label}`, run: s => Ice.setType(s, 'a', k) };
+  iceActs['b_' + k] = { label: `B: ${t.label}`, run: s => Ice.setType(s, 'b', k) };
+}
+Object.assign(iceActs, {
+  connect: { label: '🔌 เชื่อมต่อ (ICE)', run: Ice.connect },
+  send: { label: '📷 B ส่งภาพหา A', run: Ice.send },
+  idle: { label: '😴 เงียบไป 2 นาที', run: Ice.idle },
+  turnOff: { label: '🚫 ไม่มีเซิร์ฟเวอร์ TURN', run: s => Ice.setTurn(s, false) },
+  kaOn: { label: '💓 เปิด keepalive', run: s => Ice.setKeepalive(s, true) },
+});
+const ICE_MATRIX = Ice.matrix();
+proj.push({
+  title: '4 · เจาะ NAT ให้ P2P/IoT คุยกันตรง',
+  question: 'อุปกรณ์สองเครื่องที่อยู่หลัง NAT คนละแบบ จะต่อกันตรงด้วย STUN hole punching ได้เมื่อไร? คู่ไหนที่ต้องพึ่ง TURN relay และทำไมการเชื่อมต่อที่ต่อติดแล้วยังหลุดเงียบๆ ได้?',
+  pitch: 'ทำไมกรรมการสนใจ: WebRTC, เกม, กล้อง IoT, Tailscale ต่างเจอปัญหานี้ และเน็ตมือถือไทยส่วนใหญ่อยู่หลัง CGNAT · ต่อยอด: สร้าง NAT ทั้ง 4 แบบด้วย iptables/nftables ใน Containerlab, สำรวจ NAT ของ ISP ไทยด้วย STUN แล้วทำแผนที่ว่าต้องใช้ TURN กี่ %',
+  init: Ice.init, actions: iceActs,
+  view: s => {
+    const keys = Object.keys(Ice.TYPES), ai = keys.indexOf(s.a), bi = keys.indexOf(s.b);
+    const c = s.conn;
+    const mode = c ? { direct: tag('ok', 'ต่อตรง P2P'), relay: tag('warn-t', 'ผ่าน TURN relay'), failed: tag('bad-t', 'ต่อไม่ได้') }[c.mode] + (c.stale ? ' ' + tag('bad-t', 'ช่อง NAT หมดอายุแล้ว') : '') : tag('', 'ยังไม่ได้เชื่อมต่อ');
+    return `<table><tr><th>A (แล็ปท็อป หอพัก)</th><td>${Ice.TYPES[s.a].label}</td><th>B (กล้อง IoT บ้าน)</th><td>${Ice.TYPES[s.b].label}</td></tr><tr><th>TURN สำรอง</th><td>${s.turn ? 'มี' : '<span class="warn-t">ไม่มี</span>'}</td><th>keepalive</th><td>${s.keepalive ? 'ทุก 15 วินาที' : '<span class="warn-t">ไม่มี</span>'}</td></tr><tr><th>การเชื่อมต่อ</th><td colspan="3">${mode} · ภาพที่ส่งถึงแล้ว ${s.sent}</td></tr></table>` +
+      (c ? `<h3>แพ็กเก็ตตอนเจาะ NAT</h3><ul class="plain">${c.log.map(l => `<li>${l}</li>`).join('')}</ul><h3>ตาราง NAT ตอนนี้</h3><div class="grid">${['A', 'B'].map(p => `<table><tr><th colspan="2">NAT ของ ${p}</th></tr>${c.nats[p].table.length ? c.nats[p].table.map(m => `<tr><td>พอร์ต ${m.port}</td><td>รับจาก: ${m.perms.join(', ')}</td></tr>`).join('') : `<tr><td colspan="2" class="muted">${Ice.TYPES[c.nats[p].type].mapping === 'none' ? 'ไม่มี NAT' : 'ว่าง'}</td></tr>`}</table>`).join('')}</div>` : '') +
+      `<h3>เจาะตรงได้ไหม (ทุกคู่)</h3><table class="cells"><tr><th>A \\ B</th>${keys.map(k => `<th>${Ice.TYPES[k].label}</th>`).join('')}</tr>${ICE_MATRIX.map((row, i) => `<tr><th>${Ice.TYPES[keys[i]].label}</th>${row.map((ok, j) => `<td style="${i === ai && j === bi ? 'outline:2px solid var(--accent)' : ''}">${ok ? '<span class="ok">✓</span>' : '<span class="bad-t">✗ TURN</span>'}</td>`).join('')}</tr>`).join('')}</table>`;
+  },
+  scenarios: [
+    { title: 'บ้านทั่วไป', desc: 'เราเตอร์บ้านส่วนใหญ่เป็น port-restricted cone — แพ็กเก็ตแรกของ A ถูกทิ้ง แต่ช่องที่ B เจาะไว้ทำให้รอบสองผ่าน', steps: ['connect', 'send'] },
+    { title: 'มือถือ CGNAT', desc: 'กล้องย้ายไปใช้ซิม 4G ที่อยู่หลัง symmetric NAT — พอร์ตเปลี่ยนตามปลายทาง ช่องที่เจาะไว้ใช้ไม่ได้ ต้องพึ่ง TURN', steps: ['b_symmetric', 'connect', 'send'] },
+    { title: 'ไม่มี TURN', desc: 'ทั้งสองฝั่งเป็น symmetric และทีมตัดเซิร์ฟเวอร์ TURN เพื่อประหยัด — ต่อไม่ได้เลย แต่ถ้าฝั่งหนึ่งเปลี่ยนเป็น restricted cone ล่ะ?', steps: ['turnOff', 'a_symmetric', 'b_symmetric', 'connect', 'a_restricted', 'connect'] },
+    { title: 'หลุดเงียบ', desc: 'ต่อติดแล้ว แต่กล้องเงียบไป 2 นาที NAT ลบช่องทิ้ง ภาพหายโดยไม่มีใครรู้ — แล้วลองเปิด keepalive', steps: ['connect', 'send', 'idle', 'send', 'kaOn', 'connect', 'idle', 'send'] },
+  ],
+});
+
+// ---- 5 DTN ----
+const dtnActs = {
+  create: { label: '✉ ศูนย์พักพิงเขียนข้อความ', run: Dtn.create },
+  tick: { label: '⏳ ผ่านไป 1 ชั่วโมง', run: Dtn.tick },
+  spray: { label: '🌱 ใช้ Spray-and-Wait', run: s => Dtn.setProtocol(s, 'spray') },
+  epidemic: { label: '🦠 ใช้ Epidemic', run: s => Dtn.setProtocol(s, 'epidemic') },
+  direct: { label: '🚶 ใช้ถือไว้ส่งเอง', run: s => Dtn.setProtocol(s, 'direct') },
+  ackOn: { label: '🧾 เปิด ack', run: s => Dtn.setAck(s, true) },
+};
+for (const [a, b] of [['S', 'B1'], ['S', 'B2'], ['B1', 'B2'], ['B1', 'D'], ['B2', 'B3'], ['D', 'B3'], ['B1', 'R'], ['D', 'R'], ['B3', 'R']]) {
+  dtnActs[`${a}_${b}`] = { label: `🤝 ${a}–${b}`, run: s => Dtn.contact(s, a, b) };
+}
+proj.push({
+  title: '5 · เครือข่ายฉุกเฉินช่วงน้ำท่วม (DTN)',
+  question: 'เมื่อเสาสัญญาณล่มและไม่มีเส้นทางต่อเนื่อง การฝากข้อความไปกับเรือและโดรน (store-carry-forward) แบบไหนส่งถึงศูนย์บัญชาการได้จริง โดยไม่ทำให้บัฟเฟอร์และแบตเตอรี่หมดไปกับสำเนาซ้ำ?',
+  pitch: 'ทำไมกรรมการสนใจ: โจทย์ภัยพิบัติที่คนไทยเจอทุกปี และเป็นสายงานวิจัย DTN/MANET ที่ NASA ใช้กับยานอวกาศ · ต่อยอด: ทำบนมือถือด้วย Wi-Fi Direct/BLE, จำลองบน The ONE simulator ด้วยเส้นทางเรือจริงจากน้ำท่วมปี 2554, วัด delivery ratio เทียบ overhead',
+  init: Dtn.init, actions: dtnActs,
+  view: s => {
+    const m = id => s.delivered.find(d => d.id === id);
+    return `<p class="muted">ชั่วโมงที่ ${s.t} · โปรโตคอล: <b>${Dtn.PROTOCOLS[s.protocol]}</b> · ack: ${s.ack ? 'เปิด' : 'ปิด'} · ข้อความหมดอายุใน ${Dtn.TTL} ชม.</p>` +
+      '<table><tr><th>โหนด</th><th>บัฟเฟอร์</th><th>ข้อความที่ถืออยู่</th></tr>' +
+      Object.entries(Dtn.NODES).filter(([id]) => id !== 'R').map(([id, name]) => { const n = s.nodes[id], cap = Dtn.cap(id); return `<tr><td>${id} · ${name}</td><td class="${n.buf.length >= cap ? 'warn-t' : ''}">${n.buf.length}/${cap === Infinity ? '∞' : cap}</td><td>${n.buf.map(x => tag(m(x.id) ? 'warn-t' : '', x.id + (s.protocol === 'spray' ? ` ×${x.tokens}` : ''))).join(' ') || '<span class="muted">—</span>'}</td></tr>`; }).join('') +
+      `</table><h3>ศูนย์บัญชาการได้รับ</h3>${s.delivered.length ? '<ul class="plain">' + s.delivered.map(d => `<li class="ok">${d.id} ชม.ที่ ${d.at} ผ่าน ${d.path.join(' → ')}</li>`).join('') + '</ul>' : '<p class="muted">ยังไม่มี</p>'}` +
+      `<table style="margin-top:10px"><tr><th>ส่งถึง / เขียนทั้งหมด</th><td>${s.delivered.length} / ${s.seq}</td></tr><tr><th>จำนวนครั้งที่ส่งต่อ (กินแบต)</th><td>${s.tx}</td></tr><tr><th>สำเนาที่ยังค้างในเครือข่าย</th><td>${Dtn.copies(s)} <span class="muted">(สีส้ม = ถึงศูนย์แล้วแต่ยังค้าง)</span></td></tr><tr><th>ถูกปฏิเสธเพราะบัฟเฟอร์เต็ม</th><td class="${s.refused ? 'bad-t' : ''}">${s.refused}</td></tr><tr><th>สำเนาหมดอายุ</th><td>${s.expired}</td></tr></table>`;
+  },
+  scenarios: [
+    { title: 'Spray-and-Wait ส่งถึง', desc: 'ข้อความมี 4 สำเนา แจกครึ่งหนึ่งทุกครั้งที่เจอเรือลำใหม่ ลำที่เหลือ 1 สำเนาจะรอส่งถึงศูนย์เอง', steps: ['create', 'S_B1', 'S_B2', 'B1_D', 'D_R'] },
+    { title: 'Spray ติดค้าง', desc: 'สำเนาหมดก่อนเจอเรือที่จะผ่านศูนย์ — โดรนถือสำเนาสุดท้ายแต่ไม่ยอมฝากต่อ', steps: ['create', 'S_B1', 'B1_D', 'D_B3', 'B3_R'] },
+    { title: 'Epidemic ถึงแต่สิ้นเปลือง', desc: 'เส้นทางเดิมแต่แจกทุกคน ถึงศูนย์ได้ — แต่หลังจากนั้นสำเนายังถูกแจกต่อและถึงขั้นย้อนกลับไปหาเรือที่เพิ่งส่งถึง', steps: ['epidemic', 'create', 'S_B1', 'B1_D', 'D_B3', 'B3_R', 'S_B2', 'B2_B3'] },
+    { title: 'ไม่มี ack บัฟเฟอร์ตัน', desc: 'ข้อความเก่าที่ถึงศูนย์แล้วยังค้างในเรือ 2 จนรับข้อความด่วนใหม่ไม่ได้', steps: ['epidemic', 'create', 'create', 'S_B1', 'S_B2', 'B1_R', 'create', 'S_B2'] },
+    { title: 'มี ack ล้างของเก่า', desc: 'ทำซ้ำแต่เปิด ack: เรือ 1 รับรายชื่อจากศูนย์แล้วบอกต่อเรือ 2 ให้ลบทิ้ง', steps: ['epidemic', 'ackOn', 'create', 'create', 'S_B1', 'S_B2', 'B1_R', 'create', 'B1_B2', 'S_B2'] },
+  ],
+});
+
+// ---- rendering ----
+const ui = { p: 0, tab: 'free', s: null, step: 0, log: [] };
+const $ = id => document.getElementById(id);
+function reset() { ui.s = proj[ui.p].init(); ui.step = 0; ui.log = []; }
+function render() {
+  const pr = proj[ui.p];
+  $('projects').innerHTML = proj.map((x, i) => `<button class="${i === ui.p ? 'on' : ''}" data-proj="${i}">${x.title}</button>`).join('');
+  const scen = ui.tab === 'free' ? null : pr.scenarios[ui.tab];
+  let h = `<h2>${pr.title}</h2><p class="question"><b>คำถาม:</b> ${pr.question}</p><p class="pitch">${pr.pitch}</p>`;
+  h += '<div class="tabs"><button class="' + (scen ? '' : 'on') + '" data-tab="free">เล่นอิสระ</button>' + pr.scenarios.map((x, i) => `<button class="${ui.tab === i ? 'on' : ''}" data-tab="${i}">สถานการณ์: ${x.title}</button>`).join('') + '</div>';
+  if (scen) h += `<p style="margin-top:12px">${scen.desc}</p>`;
+  h += '<h3>สถานะปัจจุบัน</h3><div class="panel">' + pr.view(ui.s) + '</div>';
+  h += `<div class="happened ${ui.s.last.bad ? 'bad' : ''}"><b>เพิ่งเกิดอะไรขึ้น:</b> ${ui.s.last.text}</div>`;
+  if (scen) {
+    h += '<h3>กดตามลำดับ</h3><ol class="steps">' + scen.steps.map((k, i) => `<li class="${i < ui.step ? 'done' : ''}"><span class="n">${i + 1}.</span><button data-step="${i}" class="${i === ui.step ? 'next' : ''}" ${i === ui.step ? '' : 'disabled'}>${pr.actions[k].label}</button></li>`).join('') + '</ol>';
+    if (ui.step >= scen.steps.length) h += '<p class="muted" style="margin-top:8px">จบสถานการณ์แล้ว — กด "เริ่มใหม่" เพื่อลองอีกครั้ง</p>';
+  } else {
+    h += '<h3>ปุ่มเล่นอิสระ</h3><div class="row">' + Object.entries(pr.actions).map(([k, a]) => `<button data-act="${k}">${a.label}</button>`).join('') + '</div>';
+  }
+  h += '<div class="row" style="margin-top:14px"><button data-reset="1">↺ เริ่มใหม่</button></div>';
+  if (ui.log.length) h += '<h3>ประวัติ</h3><ul class="log">' + ui.log.slice(-8).reverse().map(x => `<li>${x}</li>`).join('') + '</ul>';
+  $('project').innerHTML = h;
+}
+function apply(key) { ui.s = proj[ui.p].actions[key].run(ui.s); ui.log.push(ui.s.last.text); }
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t || t.disabled) return;
+  const d = t.dataset;
+  if (d.proj != null) { ui.p = Number(d.proj); ui.tab = 'free'; reset(); }
+  else if (d.tab != null) { ui.tab = d.tab === 'free' ? 'free' : Number(d.tab); reset(); }
+  else if (d.reset) reset();
+  else if (d.act) apply(d.act);
+  else if (d.step != null) { apply(proj[ui.p].scenarios[ui.tab].steps[Number(d.step)]); ui.step++; }
+  render();
+});
+reset(); render();
+</script>
+</body>
+</html>

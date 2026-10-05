@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — 5 โปรเจกต์เน็ตเวิร์ก</title>
+<style>
+  :root { --bg:#fafaf9; --fg:#1c1917; --muted:#78716c; --line:#e7e5e4; --card:#fff; --accent:#4f46e5; --accent-soft:#eef2ff; --warn:#b45309; --warn-soft:#fffbeb; --bad:#b91c1c; --ok:#15803d; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1c1917; --fg:#f5f5f4; --muted:#a8a29e; --line:#3a3532; --card:#262220; --accent:#a5b4fc; --accent-soft:#2a2a45; --warn:#fbbf24; --warn-soft:#3a2f12; --bad:#f87171; --ok:#4ade80; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif; }
+  main { max-width:880px; margin:0 auto; padding:32px 16px 80px; }
+  h1 { font-size:1.5rem; margin:0 0 4px; }
+  h2 { font-size:1.2rem; margin:24px 0 8px; }
+  h3 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:24px 0 8px; }
+  p { margin:0 0 8px; }
+  .banner { background:var(--warn-soft); border:1px solid var(--line); color:var(--warn); padding:8px 12px; border-radius:8px; font-size:.9rem; margin-bottom:20px; }
+  .muted { color:var(--muted); }
+  .question { background:var(--accent-soft); border-radius:8px; padding:12px 14px; }
+  nav.projects { display:flex; flex-wrap:wrap; gap:6px; margin:16px 0 0; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:8px; padding:6px 12px; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.next { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+  .tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:1px solid var(--line); margin-top:20px; padding-bottom:8px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; }
+  .happened { margin-top:10px; padding:10px 14px; border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:4px; }
+  .happened.bad { border-color:var(--bad); }
+  table { border-collapse:collapse; width:100%; font-size:.92rem; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; }
+  .tag { display:inline-block; padding:0 8px; border-radius:999px; font-size:.8rem; border:1px solid var(--line); }
+  .ok { color:var(--ok); } .bad-t { color:var(--bad); } .warn-t { color:var(--warn); }
+  .row { display:flex; flex-wrap:wrap; gap:6px; }
+  ol.steps { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
+  ol.steps li { display:flex; gap:10px; align-items:center; }
+  ol.steps .n { width:1.6rem; color:var(--muted); text-align:right; }
+  .done button { text-decoration:line-through; }
+  ul.log { margin:0; padding-left:18px; color:var(--muted); font-size:.9rem; }
+  code { background:var(--accent-soft); padding:0 4px; border-radius:4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>5 โปรเจกต์เน็ตเวิร์กที่ลองกดเล่นได้</h1>
+  <div class="banner">⚠️ PROTOTYPE — โค้ดทิ้งได้ ไม่ใช่ของจริง · คำถามที่ต้องการคำตอบ: "ตรรกะของแต่ละโปรเจกต์ทำงานตรงกับที่คิดไว้ไหม โดยเฉพาะกรณีที่คิดบนกระดาษยาก" · เฉพาะส่วน <code>&lt;script id="logic"&gt;</code> เท่านั้นที่ตั้งใจให้ยกไปใช้ต่อได้</div>
+  <p class="muted">เลือกโปรเจกต์ → ลองกดปุ่มเล่นอิสระ หรือเปิดแท็บ "สถานการณ์" เพื่อกดไปตามลำดับ (ทุกแท็บเริ่มจากสถานะตั้งต้นเดียวกัน)</p>
+  <nav class="projects" id="projects"></nav>
+  <section id="project"></section>
+</main>
+
+<!-- ============================================================
+     LOGIC — pure, no DOM. Liftable into the real codebase later.
+     ============================================================ -->
+<script id="logic">
+const ipToInt = ip => ip.split('.').reduce((a, o) => a * 256 + Number(o), 0);
+const intToIp = n => [24, 16, 8, 0].map(sh => Math.floor(n / 2 ** sh) % 256).join('.');
+const inCidr = (ip, spec) => {
+  if (spec === 'any') return true;
+  if (!spec.includes('/')) return ip === spec;
+  const [base, p] = spec.split('/');
+  const size = 2 ** (32 - Number(p));
+  const start = Math.floor(ipToInt(base) / size) * size;
+  const n = ipToInt(ip);
+  return n >= start && n < start + size;
+};
+
+// ---------- 1. DHCP server: lease pool ----------
+const Dhcp = (() => {
+  const POOL = ['192.168.1.100', '192.168.1.101', '192.168.1.102'];
+  const LEASE = 60;
+  const init = () => ({ now: 0, leases: {}, last: { text: 'เซิร์ฟเวอร์ DHCP เริ่มทำงาน: มีที่อยู่ว่าง 3 ที่อยู่ อายุสัญญา 60 วินาที', bad: false } });
+  const active = (s, ip) => Object.values(s.leases).some(l => l.ip === ip && l.expires > s.now);
+  function request(s, mac) {
+    const leases = { ...s.leases };
+    const mine = leases[mac];
+    if (mine && mine.expires > s.now) {
+      leases[mac] = { ip: mine.ip, expires: s.now + LEASE };
+      return { ...s, leases, last: { text: `${mac} ต่ออายุสัญญา ได้ ${mine.ip} เหมือนเดิม`, bad: false } };
+    }
+    let ip = null;
+    if (mine && !active(s, mine.ip)) ip = mine.ip; // old address still unclaimed → give it back
+    if (!ip) ip = POOL.find(p => !active(s, p)) ?? null;
+    if (!ip) return { ...s, last: { text: `${mac} ขอที่อยู่ → DHCPNAK: ที่อยู่หมดแล้ว (pool exhausted)`, bad: true } };
+    for (const [m, l] of Object.entries(leases)) if (l.ip === ip) delete leases[m];
+    leases[mac] = { ip, expires: s.now + LEASE };
+    const changed = mine && mine.ip !== ip ? ` (เปลี่ยนจากเดิม ${mine.ip})` : '';
+    return { ...s, leases, last: { text: `${mac} ได้ ${ip}${changed}`, bad: false } };
+  }
+  function release(s, mac) {
+    const l = s.leases[mac];
+    if (!l || l.expires <= s.now) return { ...s, last: { text: `${mac} ขอคืนที่อยู่ แต่ไม่มีสัญญาที่ใช้อยู่ → เซิร์ฟเวอร์เมินคำขอ`, bad: true } };
+    const leases = { ...s.leases }; delete leases[mac];
+    return { ...s, leases, last: { text: `${mac} คืน ${l.ip} → ว่างทันที`, bad: false } };
+  }
+  const advance = (s, secs) => ({ ...s, now: s.now + secs, last: { text: `เวลาผ่านไป ${secs} วินาที (ตอนนี้ t=${s.now + secs}s)`, bad: false } });
+  const view = s => POOL.map(ip => {
+    const entry = Object.entries(s.leases).find(([, l]) => l.ip === ip);
+    if (!entry) return { ip, status: 'free' };
+    const [mac, l] = entry;
+    return { ip, mac, expires: l.expires, status: l.expires > s.now ? 'leased' : 'expired' };
+  });
+  return { POOL, LEASE, init, request, release, advance, view };
+})();
+
+// ---------- 2. Firewall rule tester ----------
+const Firewall = (() => {
+  const init = () => ({
+    nextId: 4, hits: {},
+    rules: [
+      { id: 1, action: 'allow', proto: 'tcp', src: 'any', dst: '10.0.1.10', port: 443, note: 'ใครก็เข้าเว็บเซิร์ฟเวอร์ผ่าน HTTPS ได้' },
+      { id: 2, action: 'allow', proto: 'tcp', src: '192.168.0.0/24', dst: '10.0.2.20', port: 5432, note: 'ออฟฟิศเข้าฐานข้อมูลได้' },
+      { id: 3, action: 'deny', proto: 'any', src: 'any', dst: 'any', port: 'any', note: 'ที่เหลือบล็อกทั้งหมด' },
+    ],
+    last: { text: 'ไฟร์วอลล์พร้อม: ตรวจกฎจากบนลงล่าง กฎแรกที่ตรงชนะ ถ้าไม่ตรงเลยก็บล็อก', bad: false },
+  });
+  const matches = (r, p) => (r.proto === 'any' || r.proto === p.proto) && (r.port === 'any' || r.port === p.port) && inCidr(p.src, r.src) && inCidr(p.dst, r.dst);
+  const isCatchAll = r => r.src === 'any' && r.dst === 'any' && r.proto === 'any' && r.port === 'any';
+  const unreachable = rules => { const out = new Set(); let blocked = false; for (const r of rules) { if (blocked) out.add(r.id); if (isCatchAll(r)) blocked = true; } return out; };
+  function send(s, p) {
+    const rule = s.rules.find(r => matches(r, p));
+    const desc = `${p.label} (${p.src} → ${p.dst}:${p.port})`;
+    if (!rule) return { ...s, last: { text: `${desc} → ไม่ตรงกฎไหนเลย → บล็อก (default deny)`, bad: true } };
+    const hits = { ...s.hits, [rule.id]: (s.hits[rule.id] ?? 0) + 1 };
+    return { ...s, hits, last: { text: `${desc} → ตรงกฎ #${rule.id} → ${rule.action === 'allow' ? 'ผ่าน' : 'บล็อก'}`, bad: rule.action === 'deny' } };
+  }
+  function addRule(s, rule, where) {
+    const r = { ...rule, id: s.nextId };
+    const rules = where === 'top' ? [r, ...s.rules] : [...s.rules, r];
+    const dead = unreachable(rules).has(r.id);
+    return { ...s, rules, nextId: s.nextId + 1, last: { text: `เพิ่มกฎ #${r.id} ที่${where === 'top' ? 'บนสุด' : 'ท้ายสุด'}${dead ? ' — แต่กฎนี้จะไม่มีวันถูกใช้ เพราะมีกฎ "ทุกอย่าง" อยู่ก่อนหน้า' : ''}`, bad: dead } };
+  }
+  const PACKETS = {
+    web: { label: 'คนบนเน็ตเปิดเว็บ', src: '203.0.113.5', dst: '10.0.1.10', proto: 'tcp', port: 443 },
+    dbOffice: { label: 'พนักงานออฟฟิศเข้า DB', src: '192.168.0.7', dst: '10.0.2.20', proto: 'tcp', port: 5432 },
+    dbInternet: { label: 'คนบนเน็ตพยายามเข้า DB', src: '203.0.113.5', dst: '10.0.2.20', proto: 'tcp', port: 5432 },
+    sshAdmin: { label: 'แอดมินออฟฟิศ SSH เข้าเว็บเซิร์ฟเวอร์', src: '192.168.0.7', dst: '10.0.1.10', proto: 'tcp', port: 22 },
+  };
+  const NEW_RULES = {
+    ssh: { action: 'allow', proto: 'tcp', src: '192.168.0.0/24', dst: '10.0.1.10', port: 22, note: 'ออฟฟิศ SSH เข้าเว็บเซิร์ฟเวอร์ได้' },
+    all: { action: 'allow', proto: 'any', src: 'any', dst: 'any', port: 'any', note: '"ชั่วคราว" อนุญาตทุกอย่าง' },
+  };
+  return { init, send, addRule, unreachable, PACKETS, NEW_RULES };
+})();
+
+// ---------- 3. Subnet (VLSM) planner ----------
+const Subnets = (() => {
+  const hostsToPrefix = h => { for (let p = 30; p >= 0; p--) if (2 ** (32 - p) - 2 >= h) return p; return 0; };
+  function plan(base, requests) {
+    const [bip, bp] = base.split('/'); const total = 2 ** (32 - Number(bp));
+    const start = Math.floor(ipToInt(bip) / total) * total, end = start + total;
+    let cursor = start;
+    const rows = [...requests].sort((a, b) => b.hosts - a.hosts).map(r => {
+      const prefix = hostsToPrefix(r.hosts), size = 2 ** (32 - prefix);
+      const at = Math.ceil(cursor / size) * size;
+      if (at + size > end) return { name: r.name, hosts: r.hosts, prefix, error: 'ที่อยู่ไม่พอ' };
+      cursor = at + size;
+      return { name: r.name, hosts: r.hosts, prefix, cidr: `${intToIp(at)}/${prefix}`, first: intToIp(at + 1), last: intToIp(at + size - 2), capacity: size - 2, wasted: size - 2 - r.hosts, size };
+    });
+    const used = rows.filter(r => !r.error).reduce((a, r) => a + r.size, 0);
+    return { rows, used, total };
+  }
+  const init = () => ({ base: '192.168.10.0/24', requests: [], last: { text: 'เริ่มจากเครือข่าย 192.168.10.0/24 (256 ที่อยู่) ยังไม่มีแผนก', bad: false } });
+  function add(s, name, hosts) {
+    if (s.requests.some(r => r.name === name)) return { ...s, last: { text: `มีแผนก "${name}" อยู่แล้ว → ไม่เพิ่มซ้ำ`, bad: true } };
+    const requests = [...s.requests, { name, hosts }];
+    const failed = plan(s.base, requests).rows.filter(r => r.error).map(r => r.name);
+    return { ...s, requests, last: { text: `เพิ่ม "${name}" (${hosts} เครื่อง)${failed.length ? ` — จัดไม่ลง: ${failed.join(', ')}` : ''}`, bad: failed.length > 0 } };
+  }
+  const removeLast = s => s.requests.length
+    ? { ...s, requests: s.requests.slice(0, -1), last: { text: `ลบ "${s.requests[s.requests.length - 1].name}"`, bad: false } }
+    : { ...s, last: { text: 'ไม่มีอะไรให้ลบ', bad: true } };
+  const setBase = (s, base) => ({ ...s, base, last: { text: `เปลี่ยนเครือข่ายหลักเป็น ${base}`, bad: false } });
+  return { init, add, removeLast, setBase, plan };
+})();
+
+// ---------- 4. Load balancer with health checks ----------
+const LoadBalancer = (() => {
+  const DOWN_AFTER = 3, UP_AFTER = 2;
+  const mk = name => ({ name, alive: true, status: 'UP', fails: 0, oks: 0, served: 0, errors: 0 });
+  const init = () => ({ servers: ['web-1', 'web-2', 'web-3'].map(mk), next: 0, last: { text: `เริ่มต้น: 3 เซิร์ฟเวอร์ ปกติหมด · ตรวจพลาด ${DOWN_AFTER} ครั้งติด = ถอดออก · ตรวจผ่าน ${UP_AFTER} ครั้งติด = ใส่กลับ`, bad: false } });
+  const setAlive = (s, name, alive) => ({ ...s, servers: s.servers.map(v => v.name === name ? { ...v, alive } : v), last: { text: `${name} ${alive ? 'กลับมาทำงาน' : 'ล่ม'} (โหลดบาลานเซอร์ยังไม่รู้จนกว่าจะตรวจ)`, bad: !alive } });
+  function healthCheck(s) {
+    const changes = [];
+    const servers = s.servers.map(v => {
+      let { status, fails, oks } = v;
+      if (v.alive) { oks++; fails = 0; if (status === 'DOWN' && oks >= UP_AFTER) { status = 'UP'; oks = 0; changes.push(`${v.name} ใส่กลับ`); } }
+      else { fails++; oks = 0; if (status === 'UP' && fails >= DOWN_AFTER) { status = 'DOWN'; changes.push(`${v.name} ถูกถอดออก`); } }
+      return { ...v, status, fails, oks };
+    });
+    return { ...s, servers, last: { text: `รอบตรวจสุขภาพเสร็จ${changes.length ? ': ' + changes.join(', ') : ' (สถานะไม่เปลี่ยน)'}`, bad: false } };
+  }
+  function request(s) {
+    const n = s.servers.length;
+    for (let i = 0; i < n; i++) {
+      const idx = (s.next + i) % n, v = s.servers[idx];
+      if (v.status !== 'UP') continue;
+      const servers = s.servers.map((x, j) => j === idx ? { ...x, served: x.served + (v.alive ? 1 : 0), errors: x.errors + (v.alive ? 0 : 1) } : x);
+      return { ...s, servers, next: (idx + 1) % n, last: v.alive
+        ? { text: `คำขอถูกส่งไป ${v.name} → สำเร็จ`, bad: false }
+        : { text: `คำขอถูกส่งไป ${v.name} ซึ่งล่มอยู่จริง → ผู้ใช้เจอ error (ระบบยังตรวจไม่พบ)`, bad: true } };
+    }
+    return { ...s, last: { text: 'ไม่มีเซิร์ฟเวอร์ที่ UP เลย → ตอบ 503', bad: true } };
+  }
+  return { init, setAlive, healthCheck, request, DOWN_AFTER, UP_AFTER };
+})();
+
+// ---------- 5. DNS resolver cache with TTL ----------
+const Dns = (() => {
+  const NAME = 'shop.example.com';
+  const init = () => ({ now: 0, auth: { ip: '198.51.100.10', ttl: 300 }, cache: null, upstream: 0, answer: null,
+    last: { text: `ตัวแก้ DNS เริ่มทำงาน: ${NAME} ชี้ที่ 198.51.100.10 TTL 300 วินาที · cache ว่าง`, bad: false } });
+  function lookup(s) {
+    if (s.cache && s.cache.expiresAt > s.now) {
+      const stale = s.cache.ip !== s.auth.ip;
+      return { ...s, answer: { ip: s.cache.ip, source: 'cache', stale }, last: { text: `ถาม ${NAME} → ตอบจาก cache: ${s.cache.ip}${stale ? ' ⚠ ข้อมูลเก่า ไม่ตรงกับต้นทางแล้ว' : ''}`, bad: stale } };
+    }
+    return { ...s, upstream: s.upstream + 1, cache: { ip: s.auth.ip, expiresAt: s.now + s.auth.ttl }, answer: { ip: s.auth.ip, source: 'upstream', stale: false },
+      last: { text: `ถาม ${NAME} → ไม่มีใน cache ไปถามต้นทาง ได้ ${s.auth.ip} เก็บไว้ ${s.auth.ttl} วินาที`, bad: false } };
+  }
+  const advance = (s, secs) => ({ ...s, now: s.now + secs, last: { text: `เวลาผ่านไป ${secs} วินาที (t=${s.now + secs}s)`, bad: false } });
+  const migrate = s => ({ ...s, auth: { ...s.auth, ip: '198.51.100.99' }, last: { text: 'ย้ายเซิร์ฟเวอร์: ต้นทางเปลี่ยนเป็น 198.51.100.99 (cache ที่เก็บไว้ไม่รู้เรื่องด้วย)', bad: false } });
+  const setTtl = (s, ttl) => ({ ...s, auth: { ...s.auth, ttl }, last: { text: `ตั้ง TTL ที่ต้นทางเป็น ${ttl} วินาที — มีผลกับการดึงครั้งถัดไปเท่านั้น ของที่อยู่ใน cache แล้วยังใช้ค่าเดิม`, bad: false } });
+  const flush = s => ({ ...s, cache: null, last: { text: 'ล้าง cache', bad: false } });
+  return { NAME, init, lookup, advance, migrate, setTtl, flush };
+})();
+</script>
+
+<!-- ============================================================
+     SHELL — throwaway page around the logic above.
+     ============================================================ -->
+<script>
+const sec = n => `t=${n}s`;
+const proj = [];
+
+// ---- 1 DHCP ----
+const dhcpActs = {};
+for (const n of ['Alice', 'Bob', 'Carol', 'Dave']) {
+  dhcpActs['req' + n] = { label: `${n} ขอที่อยู่ IP`, run: s => Dhcp.request(s, n) };
+  if (n === 'Alice' || n === 'Bob') dhcpActs['rel' + n] = { label: `${n} คืนที่อยู่`, run: s => Dhcp.release(s, n) };
+}
+dhcpActs.tick30 = { label: '⏱ ผ่านไป 30 วินาที', run: s => Dhcp.advance(s, 30) };
+dhcpActs.tick60 = { label: '⏱ ผ่านไป 60 วินาที', run: s => Dhcp.advance(s, 60) };
+proj.push({
+  title: '1 · DHCP แจกที่อยู่ IP',
+  question: 'เซิร์ฟเวอร์แจก IP จากกลุ่มที่อยู่ที่มีจำกัด 3 ที่อยู่ ถ้าเครื่องเยอะกว่าที่อยู่ หรือสัญญาหมดอายุแล้วคนอื่นฉวยที่อยู่ไป เครื่องเดิมจะเจออะไร?',
+  init: Dhcp.init, actions: dhcpActs,
+  view: s => `<p class="muted">เวลาปัจจุบัน ${sec(s.now)} · อายุสัญญา ${Dhcp.LEASE}s</p><table><tr><th>ที่อยู่</th><th>สถานะ</th><th>ผู้ถือ</th><th>หมดอายุ</th></tr>` +
+    Dhcp.view(s).map(r => `<tr><td>${r.ip}</td><td>${{ free: '<span class="tag ok">ว่าง</span>', leased: '<span class="tag">ถูกใช้</span>', expired: '<span class="tag warn-t">หมดอายุ (ยังไม่ถูกแย่ง)</span>' }[r.status]}</td><td>${r.mac ?? '—'}</td><td>${r.expires != null ? sec(r.expires) : '—'}</td></tr>`).join('') + '</table>',
+  scenarios: [
+    { title: 'ที่อยู่เต็ม', desc: 'สี่เครื่องขอ แต่มีแค่สามที่อยู่ ดูว่าคนที่สี่โดนอะไร และได้ที่อยู่เมื่อไร', steps: ['reqAlice', 'reqBob', 'reqCarol', 'reqDave', 'relAlice', 'reqDave'] },
+    { title: 'กลับมาแล้วที่อยู่เปลี่ยน', desc: 'สัญญาของทุกคนหมดอายุ แล้ว Dave มาขอก่อน Alice กลับมา ดูว่า Alice ได้ IP เดิมไหม', steps: ['reqAlice', 'reqBob', 'reqCarol', 'tick60', 'reqDave', 'reqAlice'] },
+    { title: 'ต่ออายุ & คืนที่ไม่มี', desc: 'ขอซ้ำก่อนหมดอายุ = ต่อสัญญา ส่วนคืนที่อยู่ที่ไม่ได้ถือ ควรถูกเมิน', steps: ['reqAlice', 'tick30', 'reqAlice', 'relBob', 'relAlice'] },
+  ],
+});
+
+// ---- 2 Firewall ----
+const P = Firewall.PACKETS, R = Firewall.NEW_RULES;
+const fwActs = {
+  web: { label: '📨 คนบนเน็ต → เว็บ :443', run: s => Firewall.send(s, P.web) },
+  dbOffice: { label: '📨 ออฟฟิศ → DB :5432', run: s => Firewall.send(s, P.dbOffice) },
+  dbNet: { label: '📨 คนบนเน็ต → DB :5432', run: s => Firewall.send(s, P.dbInternet) },
+  ssh: { label: '📨 แอดมินออฟฟิศ SSH → เว็บ :22', run: s => Firewall.send(s, P.sshAdmin) },
+  sshEnd: { label: '➕ เพิ่มกฎ SSH ท้ายสุด', run: s => Firewall.addRule(s, R.ssh, 'end') },
+  sshTop: { label: '➕ เพิ่มกฎ SSH บนสุด', run: s => Firewall.addRule(s, R.ssh, 'top') },
+  allTop: { label: '➕ เพิ่ม "อนุญาตทุกอย่าง" บนสุด', run: s => Firewall.addRule(s, R.all, 'top') },
+};
+proj.push({
+  title: '2 · ตัวทดสอบกฎไฟร์วอลล์',
+  question: 'กฎถูกตรวจจากบนลงล่าง กฎแรกที่ตรงชนะ ลำดับของกฎสำคัญแค่ไหน และกฎที่เพิ่มผิดที่จะ "ตายเงียบ" ไหม?',
+  init: Firewall.init, actions: fwActs,
+  view: s => { const dead = Firewall.unreachable(s.rules); return '<table><tr><th>#</th><th>การกระทำ</th><th>โปรโตคอล</th><th>ต้นทาง</th><th>ปลายทาง</th><th>พอร์ต</th><th>ใช้ไปแล้ว</th><th></th></tr>' +
+    s.rules.map(r => `<tr><td>${r.id}</td><td class="${r.action === 'allow' ? 'ok' : 'bad-t'}">${r.action === 'allow' ? 'อนุญาต' : 'บล็อก'}</td><td>${r.proto}</td><td>${r.src}</td><td>${r.dst}</td><td>${r.port}</td><td>${s.hits[r.id] ?? 0}</td><td>${dead.has(r.id) ? '<span class="tag warn-t">ไม่มีวันถูกใช้</span>' : ''}</td></tr>`).join('') + '</table>'; },
+  scenarios: [
+    { title: 'ทดสอบพื้นฐาน', desc: 'ส่งแพ็กเก็ตสี่แบบ ดูว่าตรงกฎข้อไหน', steps: ['web', 'dbOffice', 'dbNet', 'ssh'] },
+    { title: 'กฎที่เพิ่มท้ายสุดไม่ทำงาน', desc: 'อยากให้แอดมิน SSH ได้ จึงเพิ่มกฎไว้ท้ายสุด… ได้ผลไหม? แล้วย้ายขึ้นบนล่ะ?', steps: ['ssh', 'sshEnd', 'ssh', 'sshTop', 'ssh'] },
+    { title: '"ชั่วคราว" อนุญาตทุกอย่าง', desc: 'วางกฎอนุญาตทุกอย่างไว้บนสุดเพื่อแก้ปัญหาเร่งด่วน ดูว่ากฎที่เหลือกลายเป็นอะไร', steps: ['dbNet', 'allTop', 'dbNet'] },
+  ],
+});
+
+// ---- 3 Subnets ----
+const sn = (name, hosts) => ({ label: `➕ ${name} (${hosts} เครื่อง)`, run: s => Subnets.add(s, name, hosts) });
+proj.push({
+  title: '3 · ตัววางแผน Subnet (VLSM)',
+  question: 'ใส่แผนกพร้อมจำนวนเครื่อง แล้วแบ่งเครือข่ายใหญ่เป็นเครือข่ายย่อยขนาดพอดี — ลำดับที่ใส่มีผลไหม? ถ้าเครือข่ายเล็กไปจะเกิดอะไร?',
+  init: Subnets.init,
+  actions: { sales: sn('Sales', 50), eng: sn('Engineering', 25), guest: sn('Guest WiFi', 10), mgmt: sn('Management', 5), link: sn('Router link', 2), big: sn('Campus ใหญ่', 100),
+    base24: { label: '🌐 ใช้ /24 (256 ที่อยู่)', run: s => Subnets.setBase(s, '192.168.10.0/24') },
+    base25: { label: '🌐 ใช้ /25 (128 ที่อยู่)', run: s => Subnets.setBase(s, '192.168.10.0/25') },
+    rm: { label: '↩ ลบอันล่าสุด', run: Subnets.removeLast } },
+  view: s => { const p = Subnets.plan(s.base, s.requests); return `<p class="muted">เครือข่ายหลัก <b>${s.base}</b> · ใช้ไป ${p.used} / ${p.total} ที่อยู่</p>` + (p.rows.length ? '<table><tr><th>แผนก</th><th>ต้องการ</th><th>CIDR</th><th>ช่วงใช้งานได้</th><th>เหลือทิ้ง</th></tr>' +
+    p.rows.map(r => r.error ? `<tr><td>${r.name}</td><td>${r.hosts}</td><td colspan="3" class="bad-t">${r.error}</td></tr>` : `<tr><td>${r.name}</td><td>${r.hosts}</td><td>${r.cidr}</td><td>${r.first} – ${r.last}</td><td>${r.wasted}</td></tr>`).join('') + '</table>' : '<p class="muted">ยังไม่มีแผนก</p>'); },
+  scenarios: [
+    { title: 'ห้าแผนกลง /24', desc: 'ใส่แผนกจากเล็กไปใหญ่ — ผลลัพธ์เรียงตามขนาดอยู่ดี และไม่ทับกัน', steps: ['link', 'mgmt', 'guest', 'eng', 'sales'] },
+    { title: '/25 เล็กเกินไป', desc: 'เปลี่ยนเป็น /25 แล้วใส่แผนกใหญ่ — ใครจะจัดไม่ลง?', steps: ['base25', 'sales', 'eng', 'guest', 'big'] },
+    { title: 'แผนกซ้ำ', desc: 'ใส่ชื่อซ้ำ ควรถูกปฏิเสธ', steps: ['sales', 'sales', 'rm'] },
+  ],
+});
+
+// ---- 4 Load balancer ----
+const lbActs = { req: { label: '🌐 ผู้ใช้ส่งคำขอ', run: LoadBalancer.request }, check: { label: '🩺 รันตรวจสุขภาพ 1 รอบ', run: LoadBalancer.healthCheck } };
+for (const n of ['web-1', 'web-2', 'web-3']) {
+  lbActs['crash' + n] = { label: `💥 ${n} ล่ม`, run: s => LoadBalancer.setAlive(s, n, false) };
+  lbActs['fix' + n] = { label: `🔧 ${n} กลับมา`, run: s => LoadBalancer.setAlive(s, n, true) };
+}
+proj.push({
+  title: '4 · โหลดบาลานเซอร์ + ตรวจสุขภาพ',
+  question: 'โหลดบาลานเซอร์รู้ว่าเซิร์ฟเวอร์ล่มได้ก็ต่อเมื่อตรวจพบหลายรอบ ระหว่างนั้นผู้ใช้จะเจออะไร และตอนฟื้นกลับจะกลับเข้าระบบเมื่อไร?',
+  init: LoadBalancer.init, actions: lbActs,
+  view: s => '<table><tr><th>เซิร์ฟเวอร์</th><th>ความจริง</th><th>ที่โหลดบาลานเซอร์เชื่อ</th><th>ตรวจพลาดติด</th><th>ตรวจผ่านติด</th><th>ตอบสำเร็จ</th><th>ผู้ใช้เจอ error</th></tr>' +
+    s.servers.map((v, i) => `<tr><td>${v.name}${i === s.next ? ' <span class="tag">คิวถัดไป</span>' : ''}</td><td class="${v.alive ? 'ok' : 'bad-t'}">${v.alive ? 'ทำงาน' : 'ล่ม'}</td><td>${v.status === 'UP' ? '<span class="tag ok">UP</span>' : '<span class="tag bad-t">DOWN</span>'}</td><td>${v.fails}</td><td>${v.oks}</td><td>${v.served}</td><td>${v.errors}</td></tr>`).join('') + '</table>',
+  scenarios: [
+    { title: 'ปกติ: วนไปทีละตัว', desc: 'ส่งคำขอสี่ครั้ง ดูการวนแบบ round-robin', steps: ['req', 'req', 'req', 'req'] },
+    { title: 'ล่มแต่ระบบยังไม่รู้', desc: 'web-2 ล่ม ผู้ใช้เจอ error จนกว่าจะตรวจพบครบ 3 รอบ', steps: ['crashweb-2', 'req', 'req', 'req', 'check', 'check', 'check', 'req', 'req', 'req'] },
+    { title: 'ฟื้นกลับ', desc: 'web-2 ถูกถอดออกแล้วฟื้นขึ้นมา ต้องตรวจผ่านกี่รอบถึงจะได้รับงานอีก?', steps: ['crashweb-2', 'check', 'check', 'check', 'fixweb-2', 'req', 'req', 'req', 'check', 'check', 'req', 'req', 'req'] },
+  ],
+});
+
+// ---- 5 DNS cache ----
+proj.push({
+  title: '5 · DNS cache และ TTL',
+  question: 'ตัวแก้ DNS จำคำตอบไว้ตาม TTL ถ้าเจ้าของเว็บย้ายเซิร์ฟเวอร์ ผู้ใช้จะเห็นที่อยู่เก่านานแค่ไหน และการลด TTL ต้องทำตอนไหนถึงได้ผล?',
+  init: Dns.init,
+  actions: { lookup: { label: '🔎 ผู้ใช้ถาม shop.example.com', run: Dns.lookup }, tick30: { label: '⏱ ผ่านไป 30 วินาที', run: s => Dns.advance(s, 30) }, tick300: { label: '⏱ ผ่านไป 300 วินาที', run: s => Dns.advance(s, 300) },
+    migrate: { label: '🚚 ย้ายเซิร์ฟเวอร์ (เปลี่ยน IP ที่ต้นทาง)', run: Dns.migrate }, ttl30: { label: '✂ ลด TTL เป็น 30 วินาที', run: s => Dns.setTtl(s, 30) }, flush: { label: '🧹 ล้าง cache', run: Dns.flush } },
+  view: s => `<p class="muted">เวลาปัจจุบัน ${sec(s.now)}</p><table>
+    <tr><th>ต้นทาง (ความจริง)</th><td>${s.auth.ip} · TTL ${s.auth.ttl}s</td></tr>
+    <tr><th>ใน cache</th><td>${s.cache ? `${s.cache.ip} · ${s.cache.expiresAt > s.now ? `เหลืออีก ${s.cache.expiresAt - s.now}s` : '<span class="warn-t">หมดอายุแล้ว</span>'}` : 'ว่าง'}</td></tr>
+    <tr><th>ถามต้นทางไปแล้ว</th><td>${s.upstream} ครั้ง</td></tr>
+    <tr><th>คำตอบล่าสุดที่ผู้ใช้ได้</th><td>${s.answer ? `${s.answer.ip} (จาก${s.answer.source === 'cache' ? ' cache' : 'ต้นทาง'}) ${s.answer.stale ? '<span class="tag bad-t">เก่า!</span>' : '<span class="tag ok">ถูกต้อง</span>'}` : '—'}</td></tr></table>`,
+  scenarios: [
+    { title: 'cache ช่วยลดการถาม', desc: 'ถามซ้ำภายใน TTL ไม่ต้องไปถามต้นทาง พอหมดอายุค่อยถามใหม่', steps: ['lookup', 'lookup', 'tick300', 'lookup'] },
+    { title: 'ย้ายแล้วคนเห็นของเก่า', desc: 'ย้ายเซิร์ฟเวอร์ขณะที่ cache ยังไม่หมดอายุ ผู้ใช้ยังเข้าที่เก่า จนกว่า TTL จะหมด', steps: ['lookup', 'migrate', 'lookup', 'tick300', 'lookup'] },
+    { title: 'ลด TTL ช้าเกินไป', desc: 'ลด TTL หลังจาก cache ไปแล้ว — มีผลทันทีไหม?', steps: ['lookup', 'ttl30', 'migrate', 'lookup', 'tick300', 'lookup'] },
+    { title: 'ลด TTL ล่วงหน้าถูกจังหวะ', desc: 'ลด TTL แล้วรอให้ค่าเก่าหมดอายุก่อนค่อยย้าย → ผู้ใช้เห็นของเก่าสั้นลง', steps: ['lookup', 'ttl30', 'tick300', 'lookup', 'migrate', 'tick30', 'lookup'] },
+  ],
+});
+
+// ---- rendering ----
+const ui = { p: 0, tab: 'free', s: null, step: 0, log: [] };
+const $ = id => document.getElementById(id);
+function reset() { ui.s = proj[ui.p].init(); ui.step = 0; ui.log = []; }
+function render() {
+  const pr = proj[ui.p];
+  $('projects').innerHTML = proj.map((x, i) => `<button class="${i === ui.p ? 'on' : ''}" data-proj="${i}">${x.title}</button>`).join('');
+  const scen = ui.tab === 'free' ? null : pr.scenarios[ui.tab];
+  let h = `<h2>${pr.title}</h2><p class="question"><b>คำถาม:</b> ${pr.question}</p>`;
+  h += '<div class="tabs"><button class="' + (scen ? '' : 'on') + '" data-tab="free">เล่นอิสระ</button>' + pr.scenarios.map((x, i) => `<button class="${ui.tab === i ? 'on' : ''}" data-tab="${i}">สถานการณ์: ${x.title}</button>`).join('') + '</div>';
+  if (scen) h += `<p style="margin-top:12px">${scen.desc}</p>`;
+  h += '<h3>สถานะปัจจุบัน</h3><div class="panel">' + pr.view(ui.s) + '</div>';
+  h += `<div class="happened ${ui.s.last.bad ? 'bad' : ''}"><b>เพิ่งเกิดอะไรขึ้น:</b> ${ui.s.last.text}</div>`;
+  if (scen) {
+    h += '<h3>กดตามลำดับ</h3><ol class="steps">' + scen.steps.map((k, i) => `<li class="${i < ui.step ? 'done' : ''}"><span class="n">${i + 1}.</span><button data-step="${i}" class="${i === ui.step ? 'next' : ''}" ${i === ui.step ? '' : 'disabled'}>${pr.actions[k].label}</button></li>`).join('') + '</ol>';
+    if (ui.step >= scen.steps.length) h += '<p class="muted" style="margin-top:8px">จบสถานการณ์แล้ว — กด "เริ่มใหม่" เพื่อลองอีกครั้ง</p>';
+  } else {
+    h += '<h3>ปุ่มเล่นอิสระ</h3><div class="row">' + Object.entries(pr.actions).map(([k, a]) => `<button data-act="${k}">${a.label}</button>`).join('') + '</div>';
+  }
+  h += '<div class="row" style="margin-top:14px"><button data-reset="1">↺ เริ่มใหม่</button></div>';
+  if (ui.log.length) h += '<h3>ประวัติ</h3><ul class="log">' + ui.log.slice(-8).reverse().map(x => `<li>${x}</li>`).join('') + '</ul>';
+  $('project').innerHTML = h;
+}
+function apply(key) { ui.s = proj[ui.p].actions[key].run(ui.s); ui.log.push(ui.s.last.text); }
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t || t.disabled) return;
+  const d = t.dataset;
+  if (d.proj != null) { ui.p = Number(d.proj); ui.tab = 'free'; reset(); }
+  else if (d.tab != null) { ui.tab = d.tab === 'free' ? 'free' : Number(d.tab); reset(); }
+  else if (d.reset) reset();
+  else if (d.act) apply(d.act);
+  else if (d.step != null) { apply(proj[ui.p].scenarios[ui.tab].steps[Number(d.step)]); ui.step++; }
+  render();
+});
+reset(); render();
+</script>
+</body>
+</html>

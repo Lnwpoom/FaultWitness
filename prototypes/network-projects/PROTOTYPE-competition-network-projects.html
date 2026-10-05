@@ -1,0 +1,479 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — 5 โปรเจกต์เน็ตเวิร์กระดับประกวด</title>
+<style>
+  :root { --bg:#fafaf9; --fg:#1c1917; --muted:#78716c; --line:#e7e5e4; --card:#fff; --accent:#4f46e5; --accent-soft:#eef2ff; --warn:#b45309; --warn-soft:#fffbeb; --bad:#b91c1c; --ok:#15803d; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1c1917; --fg:#f5f5f4; --muted:#a8a29e; --line:#3a3532; --card:#262220; --accent:#a5b4fc; --accent-soft:#2a2a45; --warn:#fbbf24; --warn-soft:#3a2f12; --bad:#f87171; --ok:#4ade80; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif; }
+  main { max-width:920px; margin:0 auto; padding:32px 16px 80px; }
+  h1 { font-size:1.5rem; margin:0 0 4px; }
+  h2 { font-size:1.2rem; margin:24px 0 8px; }
+  h3 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:24px 0 8px; }
+  p { margin:0 0 8px; }
+  .banner { background:var(--warn-soft); border:1px solid var(--line); color:var(--warn); padding:8px 12px; border-radius:8px; font-size:.9rem; margin-bottom:20px; }
+  .muted { color:var(--muted); }
+  .question { background:var(--accent-soft); border-radius:8px; padding:12px 14px; }
+  .pitch { font-size:.9rem; color:var(--muted); border-left:3px solid var(--line); padding-left:12px; }
+  nav.projects { display:flex; flex-wrap:wrap; gap:6px; margin:16px 0 0; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:8px; padding:6px 12px; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.on { background:var(--accent); border-color:var(--accent); color:#fff; }
+  button.next { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+  .tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:1px solid var(--line); margin-top:20px; padding-bottom:8px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; overflow-x:auto; }
+  .happened { margin-top:10px; padding:10px 14px; border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:4px; }
+  .happened.bad { border-color:var(--bad); }
+  table { border-collapse:collapse; width:100%; font-size:.92rem; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:10px; }
+  .tag { display:inline-block; padding:0 8px; border-radius:999px; font-size:.8rem; border:1px solid var(--line); }
+  .ok { color:var(--ok); } .bad-t { color:var(--bad); } .warn-t { color:var(--warn); }
+  .row { display:flex; flex-wrap:wrap; gap:6px; }
+  ol.steps { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
+  ol.steps li { display:flex; gap:10px; align-items:center; }
+  ol.steps .n { width:1.6rem; color:var(--muted); text-align:right; }
+  .done button { text-decoration:line-through; }
+  ul.log, ul.plain { margin:0; padding-left:18px; font-size:.9rem; }
+  ul.log { color:var(--muted); }
+  code { background:var(--accent-soft); padding:0 4px; border-radius:4px; }
+  .cells td { text-align:center; font-variant-numeric:tabular-nums; }
+</style>
+</head>
+<body>
+<main>
+  <h1>5 โปรเจกต์เน็ตเวิร์กระดับประกวดมหาวิทยาลัย</h1>
+  <div class="banner">⚠️ PROTOTYPE — โค้ดทิ้งได้ ไม่ใช่ของจริง · คำถามที่ต้องการคำตอบ: "อัลกอริทึมหลักของแต่ละโปรเจกต์ยังถูกต้องไหมในกรณียากๆ ที่กรรมการชอบถาม" · เฉพาะส่วน <code>&lt;script id="logic"&gt;</code> เท่านั้นที่ตั้งใจให้ยกไปใช้ต่อได้</div>
+  <p class="muted">เลือกโปรเจกต์ → ลองกดปุ่มเล่นอิสระ หรือเปิดแท็บ "สถานการณ์" แล้วกดไปตามลำดับ (ทุกแท็บเริ่มจากสถานะตั้งต้นเดียวกัน)</p>
+  <nav class="projects" id="projects"></nav>
+  <section id="project"></section>
+</main>
+
+<!-- ============================================================
+     LOGIC — pure, no DOM. Liftable into the real codebase later.
+     ============================================================ -->
+<script id="logic">
+const ipToInt = ip => ip.split('.').reduce((a, o) => a * 256 + Number(o), 0);
+const intToIp = n => [24, 16, 8, 0].map(sh => Math.floor(n / 2 ** sh) % 256).join('.');
+const plen = prefix => Number(prefix.split('/')[1]);
+const inCidr = (ip, spec) => {
+  if (spec === 'any') return true;
+  if (!spec.includes('/')) return ip === spec;
+  const size = 2 ** (32 - plen(spec));
+  const start = Math.floor(ipToInt(spec.split('/')[0]) / size) * size;
+  const n = ipToInt(ip);
+  return n >= start && n < start + size;
+};
+const msg = (text, bad = false) => ({ text, bad });
+
+// ---------- 1. Data-plane verifier: catch loops & black holes before a config push ----------
+const Verifier = (() => {
+  const ROUTERS = ['R1', 'R2', 'R3', 'R4'];
+  const init = () => ({
+    guard: true, trace: null,
+    tables: {
+      R1: [{ prefix: '10.1.0.0/16', via: 'local' }, { prefix: '10.4.0.0/16', via: 'R2' }],
+      R2: [{ prefix: '10.4.0.0/16', via: 'R3' }, { prefix: '10.1.0.0/16', via: 'R1' }],
+      R3: [{ prefix: '10.4.0.0/16', via: 'R4' }, { prefix: '10.1.0.0/16', via: 'R2' }],
+      R4: [{ prefix: '10.4.0.0/16', via: 'local' }, { prefix: '10.1.0.0/16', via: 'R3' }],
+    },
+    last: msg('เครือข่าย 4 เราเตอร์ต่อเป็นแถว R1–R2–R3–R4 · ออฟฟิศ 10.1.0.0/16 อยู่ที่ R1 · เซิร์ฟเวอร์ 10.4.0.0/16 อยู่ที่ R4 · ตัวตรวจเปิดอยู่'),
+  });
+  const lpm = (table, ip) => table.filter(r => inCidr(ip, r.prefix)).sort((a, b) => plen(b.prefix) - plen(a.prefix))[0] ?? null;
+  function trace(tables, from, ip) {
+    const hops = [from];
+    for (let at = from; ;) {
+      const r = lpm(tables[at], ip);
+      if (!r) return { from, ip, hops, result: 'blackhole' };
+      if (r.via === 'local') return { from, ip, hops, result: 'delivered' };
+      if (hops.includes(r.via)) return { from, ip, hops: [...hops, r.via], result: 'loop' };
+      hops.push(r.via); at = r.via;
+    }
+  }
+  // Equivalence-class-lite: probe one address inside every prefix any router knows about,
+  // so a narrow /24 override can't hide behind the /16 it sits in.
+  const probes = tables => [...new Set(Object.values(tables).flat().map(r => intToIp(ipToInt(r.prefix.split('/')[0]) + 1)))];
+  const verify = tables => probes(tables).flatMap(ip => ROUTERS.map(r => trace(tables, r, ip))).filter(t => t.result !== 'delivered');
+  const describe = t => `${t.ip} จาก ${t.from}: ${{ loop: 'วนลูป', blackhole: 'หลุมดำ (ทิ้งเงียบ)', delivered: 'ถึงปลายทาง' }[t.result]} (${t.hops.join(' → ')})`;
+  function propose(s, label, change) {
+    const next = change(s.tables);
+    const problems = verify(next);
+    if (problems.length && s.guard) return { ...s, last: msg(`❌ ปฏิเสธ "${label}" ก่อนถึงเราเตอร์จริง: พบ ${problems.length} ปัญหา เช่น ${describe(problems[0])}`, true) };
+    if (problems.length) return { ...s, tables: next, last: msg(`⚠ ใช้ "${label}" แล้ว (ไม่มีตัวตรวจ) → ตอนนี้เครือข่ายมี ${problems.length} ปัญหา`, true) };
+    return { ...s, tables: next, last: msg(`✅ "${label}" ผ่านการตรวจทั้งเครือข่าย ใช้งานแล้ว`) };
+  }
+  const setRoute = (router, prefix, via) => t => ({ ...t, [router]: [...t[router].filter(r => r.prefix !== prefix), ...(via ? [{ prefix, via }] : [])] });
+  const runTrace = (s, from, ip) => { const t = trace(s.tables, from, ip); return { ...s, trace: t, last: msg(`ส่งแพ็กเก็ต: ${describe(t)}`, t.result !== 'delivered') }; };
+  const setGuard = (s, guard) => ({ ...s, guard, last: msg(guard ? 'เปิดตัวตรวจ: ทุกการเปลี่ยนแปลงต้องผ่านการพิสูจน์ก่อน' : 'ปิดตัวตรวจ: การเปลี่ยนแปลงลงเราเตอร์ทันที (แบบที่ทำกันทั่วไป)', !guard) });
+  return { ROUTERS, init, verify, describe, propose, setRoute, runTrace, setGuard };
+})();
+
+// ---------- 2. SDN controller with fast reroute ----------
+const Sdn = (() => {
+  const LINKS = [['A', 'B', 1], ['B', 'E', 1], ['A', 'C', 2], ['C', 'E', 3], ['C', 'D', 1], ['D', 'E', 1]];
+  const SRC = 'A', DST = 'E';
+  function dijkstra(links, src, dst) {
+    const nodes = new Set([src, dst, ...links.flatMap(l => [l.a, l.b])]);
+    const dist = Object.fromEntries([...nodes].map(n => [n, Infinity])), prev = {}, done = new Set();
+    dist[src] = 0;
+    for (;;) {
+      let u = null;
+      for (const n of nodes) if (!done.has(n) && dist[n] < Infinity && (u === null || dist[n] < dist[u])) u = n;
+      if (u === null) break;
+      done.add(u);
+      for (const l of links) {
+        if (!l.up) continue;
+        const v = l.a === u ? l.b : l.b === u ? l.a : null;
+        if (v && dist[u] + l.cost < dist[v]) { dist[v] = dist[u] + l.cost; prev[v] = { node: u, link: l.id }; }
+      }
+    }
+    if (dist[dst] === Infinity) return null;
+    const nodesOut = [dst], linkIds = [];
+    for (let n = dst; n !== src; n = prev[n].node) { linkIds.unshift(prev[n].link); nodesOut.unshift(prev[n].node); }
+    return { nodes: nodesOut, links: linkIds, cost: dist[dst] };
+  }
+  const compute = links => {
+    const primary = dijkstra(links, SRC, DST);
+    const backup = primary ? dijkstra(links.map(l => primary.links.includes(l.id) ? { ...l, up: false } : l), SRC, DST) : null;
+    return { primary, backup };
+  };
+  const show = p => p ? `${p.nodes.join('→')} (ต้นทุน ${p.cost})` : 'ไม่มี';
+  const pathUp = (links, p) => !!p && p.links.every(id => links.find(l => l.id === id).up);
+  const activePath = s => s.active === 'primary' ? s.primary : s.active === 'backup' ? s.backup : null;
+  const init = () => {
+    const links = LINKS.map(([a, b, cost]) => ({ id: `${a}-${b}`, a, b, cost, up: true }));
+    return { links, ...compute(links), active: 'primary', frr: true, delivered: 0, lost: 0, recomputes: 0, last: msg('คอนโทรลเลอร์คำนวณเส้นทางหลักและเส้นทางสำรอง (ไม่ใช้ลิงก์ร่วมกัน) ติดตั้งลงสวิตช์ล่วงหน้าแล้ว') };
+  };
+  function fail(s, id) {
+    const links = s.links.map(l => l.id === id ? { ...l, up: false } : l);
+    const cur = activePath(s);
+    if (!cur || !cur.links.includes(id)) return { ...s, links, last: msg(`ลิงก์ ${id} ขาด — ไม่อยู่บนเส้นทางที่ใช้อยู่ ทราฟฟิกไม่กระทบ`) };
+    if (s.frr && s.active === 'primary' && pathUp(links, s.backup)) return { ...s, links, active: 'backup', last: msg(`ลิงก์ ${id} ขาด → สวิตช์สลับไปเส้นสำรอง ${show(s.backup)} ทันทีในระดับ data plane ไม่ต้องรอคอนโทรลเลอร์`) };
+    return { ...s, links, active: 'none', last: msg(`ลิงก์ ${id} ขาด → ${s.frr ? 'เส้นสำรองก็ใช้ไม่ได้' : 'ไม่มี fast reroute'} โฟลว์ขาด ต้องรอคอนโทรลเลอร์คำนวณใหม่`, true) };
+  }
+  const restore = (s, id) => ({ ...s, links: s.links.map(l => l.id === id ? { ...l, up: true } : l), last: msg(`ลิงก์ ${id} กลับมา — ยังไม่ย้ายทราฟฟิกกลับเอง (กันเส้นทางสลับไปมา) รอคอนโทรลเลอร์ตัดสินใจ`) });
+  function recompute(s) {
+    const c = compute(s.links);
+    const note = !c.primary ? 'ไม่มีเส้นทางไปถึง E เลย' : c.backup ? `หลัก ${show(c.primary)} · สำรอง ${show(c.backup)}` : `หลัก ${show(c.primary)} · ⚠ ไม่มีเส้นสำรอง (single point of failure)`;
+    return { ...s, ...c, active: c.primary ? 'primary' : 'none', recomputes: s.recomputes + 1, last: msg(`คอนโทรลเลอร์คำนวณใหม่: ${note}`, !c.backup) };
+  }
+  function send(s) {
+    const p = activePath(s);
+    if (pathUp(s.links, p)) return { ...s, delivered: s.delivered + 1, last: msg(`แพ็กเก็ต A→E ส่งถึง ผ่าน ${p.nodes.join('→')}`) };
+    return { ...s, lost: s.lost + 1, last: msg('แพ็กเก็ต A→E หาย (ไม่มีเส้นทางที่ใช้งานได้)', true) };
+  }
+  const setFrr = (s, frr) => ({ ...s, frr, last: msg(frr ? 'เปิด fast reroute' : 'ปิด fast reroute: ต้องรอคอนโทรลเลอร์ทุกครั้งที่ลิงก์ขาด', !frr) });
+  return { init, fail, restore, recompute, send, setFrr, show, activePath };
+})();
+
+// ---------- 3. In-network DDoS detection with a Count-Min Sketch ----------
+const Sketch = (() => {
+  const DEPTH = 2, THRESHOLD = 50;
+  const fnv = str => { let h = 2166136261; for (const c of str) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619) >>> 0; } return h; };
+  const col = (ip, row, width) => fnv(`${row}:${ip}`) % width;
+  const HOSTS = {
+    attacker: { ip: '203.0.113.66', name: 'ผู้โจมตี' },
+    alice: { ip: '198.51.100.7', name: 'Alice' },
+    bob: { ip: '198.51.100.9', name: 'Bob' },
+    bot: { ip: '203.0.113.200', name: 'บอทยิงช้า' },
+  };
+  const empty = w => Array.from({ length: DEPTH }, () => Array(w).fill(0));
+  const init = () => ({ width: 8, window: 1, counts: empty(8), truth: {}, total: {}, blocked: [], dropped: {},
+    last: msg(`สวิตช์นับแพ็กเก็ตด้วย Count-Min Sketch ${DEPTH}×8 ช่อง (ใช้หน่วยความจำคงที่) · ใครประมาณได้ ≥ ${THRESHOLD} ต่อหน้าต่างเวลา = บล็อก`) });
+  const estimate = (s, ip) => Math.min(...s.counts.map((row, r) => row[col(ip, r, s.width)]));
+  function traffic(s, key, n) {
+    const { ip, name } = HOSTS[key];
+    if (s.blocked.includes(ip)) return { ...s, dropped: { ...s.dropped, [ip]: (s.dropped[ip] ?? 0) + n }, last: msg(`${name} ส่ง ${n} แพ็กเก็ต → ถูกบล็อกอยู่ ทิ้งทั้งหมด`, key !== 'attacker') };
+    const counts = s.counts.map((row, r) => row.map((v, c) => c === col(ip, r, s.width) ? v + n : v));
+    const truth = { ...s.truth, [ip]: (s.truth[ip] ?? 0) + n }, total = { ...s.total, [ip]: (s.total[ip] ?? 0) + n };
+    const next = { ...s, counts, truth, total };
+    const est = estimate(next, ip);
+    const base = `${name} ส่ง ${n} · จริง ${truth[ip]} · sketch ประมาณ ${est}`;
+    if (est < THRESHOLD) return { ...next, last: msg(`${base} → ปล่อยผ่าน`) };
+    const falsePositive = truth[ip] < THRESHOLD;
+    return { ...next, blocked: [...s.blocked, ip], last: msg(`${base} → ${falsePositive ? 'ถูกบล็อกผิด! (false positive: hash ชนกับผู้โจมตีทุกแถว)' : 'เกินเกณฑ์ บล็อกที่สวิตช์'}`, falsePositive) };
+  }
+  const newWindow = s => ({ ...s, window: s.window + 1, counts: empty(s.width), truth: {}, blocked: [], last: msg(`เริ่มหน้าต่างเวลาที่ ${s.window + 1}: ล้างตัวนับและรายการบล็อก`) });
+  const setWidth = (s, width) => ({ ...s, width, window: s.window + 1, counts: empty(width), truth: {}, blocked: [], last: msg(`ขยาย sketch เป็น ${DEPTH}×${width} ช่อง (ใช้หน่วยความจำ ${DEPTH * width} ตัวนับ) แล้วเริ่มหน้าต่างใหม่`) });
+  return { DEPTH, THRESHOLD, HOSTS, init, estimate, traffic, newWindow, setWidth };
+})();
+
+// ---------- 4. BGP hijack detection with RPKI Route Origin Validation (RFC 6811) ----------
+const Rpki = (() => {
+  const ANN = {
+    legit: { prefix: '203.0.113.0/24', path: [64510, 64500], who: 'ธนาคาร AS64500 ประกาศเครือข่ายตัวเอง' },
+    sameHijack: { prefix: '203.0.113.0/24', path: [666], who: 'AS666 อ้างเป็นเจ้าของ /24 เดียวกัน' },
+    subHijack: { prefix: '203.0.113.0/25', path: [666], who: 'AS666 ประกาศ /25 ที่เจาะจงกว่า' },
+    forged: { prefix: '203.0.113.0/25', path: [666, 64500], who: 'AS666 ปลอมว่าต้นทางคือ AS64500 แล้วประกาศ /25' },
+    legit2: { prefix: '192.0.2.0/24', path: [64510, 64502], who: 'มหาวิทยาลัย AS64502 ประกาศเครือข่าย (ยังไม่ทำ ROA)' },
+    hijack2: { prefix: '192.0.2.0/25', path: [666], who: 'AS666 ประกาศ /25 ของมหาวิทยาลัย' },
+  };
+  const origin = r => r.path[r.path.length - 1];
+  const covers = (roa, prefix) => plen(prefix) >= plen(roa) && inCidr(prefix.split('/')[0], roa);
+  function validate(roas, route) {
+    const covering = roas.filter(r => covers(r.prefix, route.prefix));
+    if (!covering.length) return 'notfound';
+    return covering.some(r => r.asn === origin(route) && plen(route.prefix) <= r.maxLength) ? 'valid' : 'invalid';
+  }
+  const accepted = (s, route) => !s.rov || validate(s.roas, route) !== 'invalid';
+  const LABEL = { valid: 'Valid', invalid: 'Invalid', notfound: 'NotFound' };
+  const init = () => ({ rov: true, roas: [{ prefix: '203.0.113.0/24', asn: 64500, maxLength: 24 }], rib: [], lookup: null,
+    last: msg('เราเตอร์ขอบเครือข่ายรับเส้นทาง BGP · มี ROA: 203.0.113.0/24 เป็นของ AS64500 (maxLength /24) · เปิด ROV') });
+  function announce(s, key) {
+    const route = { key, ...ANN[key] };
+    const rib = [...s.rib.filter(r => r.key !== key), route];
+    const v = validate(s.roas, route), ok = accepted(s, route);
+    return { ...s, rib, last: msg(`${route.who}: ${route.prefix} path [${route.path.join(' ')}] → ${LABEL[v]} → ${ok ? 'รับไว้' : 'ทิ้ง'}`, ok && route.path.includes(666)) };
+  }
+  function lookup(s, ip) {
+    const best = s.rib.filter(r => accepted(s, r) && inCidr(ip, r.prefix))
+      .sort((a, b) => plen(b.prefix) - plen(a.prefix) || a.path.length - b.path.length)[0];
+    if (!best) return { ...s, lookup: { ip, route: null }, last: msg(`ส่งข้อมูลไป ${ip} → ไม่มีเส้นทาง`, true) };
+    const hijacked = best.path.includes(666);
+    return { ...s, lookup: { ip, route: best, hijacked }, last: msg(`ส่งข้อมูลไป ${ip} → ใช้ ${best.prefix} ผ่าน AS path [${best.path.join(' ')}] ${hijacked ? '🚨 ถูกดักไป AS666!' : '✅ ถึงเจ้าของจริง'}`, hijacked) };
+  }
+  const setRov = (s, rov) => ({ ...s, rov, last: msg(rov ? 'เปิด ROV: ประเมินทุกเส้นทางใหม่ ทิ้ง Invalid' : 'ปิด ROV: รับทุกเส้นทาง (แบบเราเตอร์ส่วนใหญ่เมื่อไม่กี่ปีก่อน)', !rov) });
+  const setMaxLen = (s, maxLength) => ({ ...s, roas: s.roas.map(r => r.asn === 64500 ? { ...r, maxLength } : r), last: msg(`ธนาคารแก้ ROA ให้ maxLength = /${maxLength}`, maxLength > 24) });
+  const addUniRoa = s => ({ ...s, roas: [...s.roas.filter(r => r.asn !== 64502), { prefix: '192.0.2.0/24', asn: 64502, maxLength: 24 }], last: msg('มหาวิทยาลัยออก ROA: 192.0.2.0/24 เป็นของ AS64502 (maxLength /24)') });
+  return { init, announce, lookup, setRov, setMaxLen, addUniRoa, validate, accepted, LABEL };
+})();
+
+// ---------- 5. Congestion-control fairness lab ----------
+const CongestionLab = (() => {
+  const CAPACITY = 10, MAX_CWND = 40;
+  const init = () => ({ rtt: 0, buffer: 5, flows: [{ name: 'A', type: 'aimd', cwnd: 1 }, { name: 'B', type: 'aimd', cwnd: 8 }],
+    avg: {}, avgQueue: 0, fairness: null, lossEvents: 0,
+    last: msg(`ลิงก์คอขวดส่งได้ ${CAPACITY} แพ็กเก็ต/RTT บัฟเฟอร์ 5 · โฟลว์ A เริ่มช้า (1) B เริ่มเร็ว (8) ทั้งคู่ใช้ AIMD`) });
+  const jain = xs => { const sum = xs.reduce((a, b) => a + b, 0), sq = xs.reduce((a, b) => a + b * b, 0); return sq ? (sum * sum) / (xs.length * sq) : 1; };
+  function tick(s) {
+    const total = s.flows.reduce((a, f) => a + f.cwnd, 0);
+    const loss = total > CAPACITY + s.buffer;
+    const queue = Math.min(s.buffer, Math.max(0, total - CAPACITY));
+    const sent = Math.min(total, CAPACITY);
+    const tput = Object.fromEntries(s.flows.map(f => [f.name, (f.cwnd / total) * sent]));
+    const flows = s.flows.map(f => ({ ...f, cwnd: f.type === 'aimd' ? (loss ? Math.max(1, Math.floor(f.cwnd / 2)) : f.cwnd + 1) : Math.min(MAX_CWND, f.cwnd + 1) }));
+    return { s: { ...s, flows, rtt: s.rtt + 1, lossEvents: s.lossEvents + (loss ? 1 : 0) }, tput, queue, loss };
+  }
+  function run(s, n) {
+    let cur = s, losses = 0, q = 0; const acc = {};
+    for (let i = 0; i < n; i++) {
+      const r = tick(cur); cur = r.s; q += r.queue; losses += r.loss ? 1 : 0;
+      for (const [k, v] of Object.entries(r.tput)) acc[k] = (acc[k] ?? 0) + v;
+    }
+    const avg = Object.fromEntries(Object.entries(acc).map(([k, v]) => [k, v / n]));
+    const fairness = jain(Object.values(avg)), avgQueue = q / n;
+    return { ...cur, avg, avgQueue, fairness, last: msg(`ผ่านไป ${n} RTT: แพ็กเก็ตหาย ${losses} ครั้ง · ความยุติธรรม (Jain) ${fairness.toFixed(2)} · คิวเฉลี่ย ${avgQueue.toFixed(1)} → หน่วงเพิ่ม ${(avgQueue / CAPACITY).toFixed(2)} RTT`, fairness < 0.8 || avgQueue / CAPACITY > 1) };
+  }
+  const addFlow = (s, type) => {
+    const name = String.fromCharCode(65 + s.flows.length);
+    return { ...s, flows: [...s.flows, { name, type, cwnd: 1 }], last: msg(`เพิ่มโฟลว์ ${name} แบบ ${type === 'aimd' ? 'AIMD (ถอยเมื่อแพ็กเก็ตหาย)' : 'ไม่ถอยเลย (เช่น UDP ยิงไม่ยั้ง)'}`, type !== 'aimd') };
+  };
+  const setBuffer = (s, buffer) => ({ ...s, buffer, last: msg(`ตั้งบัฟเฟอร์เราเตอร์ = ${buffer} แพ็กเก็ต`) });
+  return { CAPACITY, init, run, addFlow, setBuffer };
+})();
+</script>
+
+<!-- ============================================================
+     SHELL — throwaway page around the logic above.
+     ============================================================ -->
+<script>
+const proj = [];
+const tag = (cls, text) => `<span class="tag ${cls}">${text}</span>`;
+
+// ---- 1 Verifier ----
+const V = Verifier;
+proj.push({
+  title: '1 · ตัวพิสูจน์ data plane',
+  question: 'ก่อนส่งการตั้งค่าเส้นทางลงเราเตอร์จริง ตรวจได้ไหมว่าจะเกิดลูปหรือหลุมดำ — รวมถึงกรณีที่เส้นทางเจาะจง (/24) แอบทับเส้นทางใหญ่ (/16) จนพังเฉพาะบางกลุ่มที่อยู่?',
+  pitch: 'ทำไมกรรมการสนใจ: เหตุเน็ตล่มใหญ่ส่วนมากมาจากการแก้ config ผิด (แนวเดียวกับ Batfish, Veriflow, งาน NSDI/SIGCOMM) · ต่อยอด: อ่าน config จริงจาก Cisco/Juniper, ทดลองบน Mininet/Containerlab, ใช้ BDD แทนการสุ่มที่อยู่',
+  init: V.init,
+  actions: {
+    traceOffice: { label: '📨 R1 → เซิร์ฟเวอร์ 10.4.0.5', run: s => V.runTrace(s, 'R1', '10.4.0.5') },
+    traceBack: { label: '📨 R4 → ออฟฟิศ 10.1.0.5', run: s => V.runTrace(s, 'R4', '10.1.0.5') },
+    traceSpecial: { label: '📨 R1 → เซิร์ฟเวอร์ย่อย 10.4.9.9', run: s => V.runTrace(s, 'R1', '10.4.9.9') },
+    safe: { label: '🛠 R1: เพิ่ม 10.4.9.0/24 → R2', run: s => V.propose(s, 'R1: เพิ่ม 10.4.9.0/24 → R2', V.setRoute('R1', '10.4.9.0/24', 'R2')) },
+    loop: { label: '🛠 R3: ส่ง 10.4.0.0/16 กลับไป R2', run: s => V.propose(s, 'R3: ส่ง 10.4.0.0/16 กลับไป R2', V.setRoute('R3', '10.4.0.0/16', 'R2')) },
+    hole: { label: '🛠 R2: ลบเส้นทาง 10.4.0.0/16', run: s => V.propose(s, 'R2: ลบเส้นทาง 10.4.0.0/16', V.setRoute('R2', '10.4.0.0/16', null)) },
+    specific: { label: '🛠 R2: เพิ่ม 10.4.9.0/24 → R1', run: s => V.propose(s, 'R2: เพิ่ม 10.4.9.0/24 → R1', V.setRoute('R2', '10.4.9.0/24', 'R1')) },
+    guardOff: { label: '🔓 ปิดตัวตรวจ', run: s => V.setGuard(s, false) },
+    guardOn: { label: '🔒 เปิดตัวตรวจ', run: s => V.setGuard(s, true) },
+  },
+  view: s => {
+    const problems = V.verify(s.tables);
+    return `<p>ตัวตรวจ: ${s.guard ? tag('ok', 'เปิด') : tag('bad-t', 'ปิด')}</p><div class="grid">` +
+      V.ROUTERS.map(r => `<table><tr><th colspan="2">${r}</th></tr>${s.tables[r].map(e => `<tr><td>${e.prefix}</td><td>${e.via === 'local' ? 'ส่งถึงในเครื่อง' : '→ ' + e.via}</td></tr>`).join('')}</table>`).join('') +
+      `</div><h3>ผลตรวจทั้งเครือข่ายตอนนี้</h3>${problems.length ? '<ul class="plain bad-t">' + problems.map(p => `<li>${V.describe(p)}</li>`).join('') + '</ul>' : '<p class="ok">✅ ทุกเราเตอร์ไปถึงทุกปลายทางได้ ไม่มีลูป ไม่มีหลุมดำ</p>'}` +
+      (s.trace ? `<h3>แพ็กเก็ตล่าสุด</h3><p>${V.describe(s.trace)}</p>` : '');
+  },
+  scenarios: [
+    { title: 'ปกติ + การแก้ที่ปลอดภัย', desc: 'ส่งแพ็กเก็ตสองทาง แล้วลองแก้ config ที่ไม่ทำให้อะไรพัง ตัวตรวจควรปล่อยผ่าน', steps: ['traceOffice', 'traceBack', 'safe', 'traceSpecial'] },
+    { title: 'กันลูปไว้ก่อน', desc: 'ใครบางคนพิมพ์ next-hop ผิดที่ R3 — ตัวตรวจควรปฏิเสธก่อนถึงเราเตอร์จริง', steps: ['loop', 'traceOffice'] },
+    { title: 'ไม่มีตัวตรวจ = หลุมดำ', desc: 'ปิดตัวตรวจแล้วลบเส้นทางที่ R2 ดูว่าแพ็กเก็ตหายไปไหน', steps: ['guardOff', 'hole', 'traceOffice'] },
+    { title: '/24 แอบทับ /16', desc: 'เพิ่มเส้นทางเจาะจงที่ R2 ซึ่งพังแค่กลุ่ม 10.4.9.x — ทดสอบที่อยู่ทั่วไปจะไม่เห็นปัญหาเลย', steps: ['specific', 'guardOff', 'specific', 'traceOffice', 'traceSpecial'] },
+  ],
+});
+
+// ---- 2 SDN fast reroute ----
+const sdnActs = {
+  send: { label: '📨 ส่งแพ็กเก็ต A→E', run: Sdn.send },
+  recompute: { label: '🧠 คอนโทรลเลอร์คำนวณใหม่', run: Sdn.recompute },
+  frrOff: { label: '🔓 ปิด fast reroute', run: s => Sdn.setFrr(s, false) },
+};
+for (const id of ['A-B', 'B-E', 'C-E', 'D-E']) {
+  sdnActs['fail' + id] = { label: `✂ ตัดลิงก์ ${id}`, run: s => Sdn.fail(s, id) };
+  sdnActs['fix' + id] = { label: `🔧 ต่อลิงก์ ${id}`, run: s => Sdn.restore(s, id) };
+}
+proj.push({
+  title: '2 · SDN ซ่อมตัวเอง (fast reroute)',
+  question: 'ถ้าลิงก์ขาด เครือข่ายสลับเส้นทางได้ทันทีโดยไม่ต้องรอคอนโทรลเลอร์ไหม? แล้วถ้าขาดสองจุดพร้อมกัน หรือลิงก์ฟื้นกลับ ควรทำอย่างไร?',
+  pitch: 'ทำไมกรรมการสนใจ: เวลาฟื้นตัวระดับมิลลิวินาทีคือหัวใจของเครือข่ายดาต้าเซ็นเตอร์และ 5G · ต่อยอด: ONOS/Ryu + Mininet, P4 fast-failover group, วัดจำนวนแพ็กเก็ตหายเทียบกับ OSPF',
+  init: Sdn.init, actions: sdnActs,
+  view: s => {
+    const act = Sdn.activePath(s);
+    return '<table><tr><th>ลิงก์</th><th>ต้นทุน</th><th>สถานะ</th><th>อยู่บนเส้นทางที่ใช้</th></tr>' +
+      s.links.map(l => `<tr><td>${l.id}</td><td>${l.cost}</td><td>${l.up ? tag('ok', 'ใช้ได้') : tag('bad-t', 'ขาด')}</td><td>${act && act.links.includes(l.id) ? '●' : ''}</td></tr>`).join('') +
+      `</table><table style="margin-top:10px"><tr><th>เส้นหลัก</th><td>${Sdn.show(s.primary)}</td></tr><tr><th>เส้นสำรอง</th><td>${Sdn.show(s.backup)}</td></tr>
+      <tr><th>กำลังใช้</th><td>${{ primary: 'เส้นหลัก', backup: 'เส้นสำรอง', none: '<span class="bad-t">ไม่มี (โฟลว์ขาด)</span>' }[s.active]}</td></tr>
+      <tr><th>fast reroute</th><td>${s.frr ? 'เปิด' : 'ปิด'}</td></tr><tr><th>ส่งถึง / หาย</th><td>${s.delivered} / <span class="${s.lost ? 'bad-t' : ''}">${s.lost}</span></td></tr><tr><th>คอนโทรลเลอร์คำนวณใหม่</th><td>${s.recomputes} ครั้ง</td></tr></table>`;
+  },
+  scenarios: [
+    { title: 'ลิงก์ขาด 1 จุด', desc: 'เส้นหลักขาด สวิตช์ใช้เส้นสำรองที่ติดตั้งไว้ก่อนแล้ว — ไม่มีแพ็กเก็ตหาย', steps: ['send', 'failA-B', 'send', 'recompute', 'send'] },
+    { title: 'ไม่มี fast reroute', desc: 'เทียบกัน: ปิด fast reroute แล้วตัดลิงก์เดิม แพ็กเก็ตหายจนกว่าคอนโทรลเลอร์จะตอบสนอง', steps: ['frrOff', 'send', 'failA-B', 'send', 'send', 'recompute', 'send'] },
+    { title: 'ขาด 2 จุด', desc: 'ลิงก์บนเส้นหลักและเส้นสำรองขาดทั้งคู่ — คอนโทรลเลอร์ยังหาทางได้ไหม และเหลือเส้นสำรองไหม?', steps: ['failA-B', 'send', 'failD-E', 'send', 'recompute', 'send'] },
+    { title: 'ลิงก์ฟื้นกลับ', desc: 'ลิงก์ที่เคยขาดกลับมา ทราฟฟิกควรกลับไปเส้นสั้นเมื่อไร?', steps: ['failA-B', 'recompute', 'fixA-B', 'send', 'recompute', 'send'] },
+  ],
+});
+
+// ---- 3 Sketch DDoS ----
+const H = Sketch.HOSTS;
+proj.push({
+  title: '3 · ตรวจจับ DDoS ในสวิตช์ด้วย Sketch',
+  question: 'นับแพ็กเก็ตทุก IP ด้วยหน่วยความจำคงที่ (Count-Min Sketch) แล้วบล็อกตัวที่ส่งเยอะ — มันบล็อกคนบริสุทธิ์ผิดเมื่อไร และพลาดผู้โจมตีแบบไหน?',
+  pitch: 'ทำไมกรรมการสนใจ: สวิตช์มีหน่วยความจำน้อยมาก แต่ต้องรับมือ IP เป็นล้าน (แนวงาน P4/eBPF/XDP เช่น UnivMon, Poseidon) · ต่อยอด: เขียนเป็น XDP บน Linux, วัดความแม่นยำบนชุดข้อมูล CAIDA/CIC-DDoS',
+  init: Sketch.init,
+  actions: {
+    attacker: { label: `💣 ผู้โจมตี ส่ง 30`, run: s => Sketch.traffic(s, 'attacker', 30) },
+    alice: { label: '🙂 Alice ส่ง 5', run: s => Sketch.traffic(s, 'alice', 5) },
+    bob: { label: '🙂 Bob ส่ง 5', run: s => Sketch.traffic(s, 'bob', 5) },
+    bot: { label: '🐢 บอทยิงช้า ส่ง 20', run: s => Sketch.traffic(s, 'bot', 20) },
+    window: { label: '⏱ หน้าต่างเวลาใหม่', run: Sketch.newWindow },
+    wide: { label: '📏 ขยาย sketch เป็น 64 ช่อง', run: s => Sketch.setWidth(s, 64) },
+  },
+  view: s => `<p class="muted">หน้าต่างเวลาที่ ${s.window} · sketch ${Sketch.DEPTH}×${s.width} · เกณฑ์บล็อก ${Sketch.THRESHOLD}</p>` +
+    '<table><tr><th>ผู้ส่ง</th><th>IP</th><th>จริง (หน้าต่างนี้)</th><th>sketch ประมาณ</th><th>รวมทุกหน้าต่าง</th><th>สถานะ</th></tr>' +
+    Object.values(H).map(h => { const est = Sketch.estimate(s, h.ip), t = s.truth[h.ip] ?? 0; return `<tr><td>${h.name}</td><td>${h.ip}</td><td>${t}</td><td class="${est > t ? 'warn-t' : ''}">${est}</td><td>${s.total[h.ip] ?? 0}</td><td>${s.blocked.includes(h.ip) ? tag('bad-t', 'บล็อก') : tag('ok', 'ผ่าน')}</td></tr>`; }).join('') + '</table>' +
+    (s.width <= 16 ? '<h3>ตัวนับใน sketch</h3><table class="cells">' + s.counts.map((row, r) => `<tr><th>แถว ${r + 1}</th>${row.map(v => `<td>${v}</td>`).join('')}</tr>`).join('') + '</table>' : `<p class="muted" style="margin-top:8px">ตัวนับ ${Sketch.DEPTH}×${s.width} ช่อง (ซ่อนไว้)</p>`),
+  scenarios: [
+    { title: 'จับผู้โจมตีได้', desc: 'ผู้โจมตียิงแพ็กเก็ตเป็นชุด จนเกินเกณฑ์และถูกบล็อกที่สวิตช์', steps: ['alice', 'attacker', 'attacker', 'attacker'] },
+    { title: 'บล็อกคนบริสุทธิ์ผิด', desc: 'Bob ส่งแค่ 5 แพ็กเก็ต แต่ hash ของเขาชนกับผู้โจมตีทุกแถว — sketch ประมาณเกินจริงเสมอ', steps: ['attacker', 'attacker', 'bob', 'alice'] },
+    { title: 'ขยาย sketch แก้ปัญหา', desc: 'ใช้หน่วยความจำมากขึ้น 8 เท่า แล้วทำซ้ำ — Bob ยังโดนไหม?', steps: ['wide', 'attacker', 'attacker', 'bob'] },
+    { title: 'บอทยิงช้าหลบเกณฑ์', desc: 'ยิงทีละน้อยในทุกหน้าต่างเวลา รวมแล้วเกินเกณฑ์แต่ไม่เคยถูกจับ', steps: ['bot', 'window', 'bot', 'window', 'bot'] },
+  ],
+});
+
+// ---- 4 RPKI ----
+const RK = Rpki;
+proj.push({
+  title: '4 · ตรวจจับ BGP hijack ด้วย RPKI',
+  question: 'เมื่อมีคนประกาศเส้นทาง BGP แย่งเครือข่ายของคนอื่น เราเตอร์ที่ตรวจ ROA (Route Origin Validation) กันได้ทุกแบบไหม? แบบไหนที่ยังหลุด?',
+  pitch: 'ทำไมกรรมการสนใจ: BGP hijack ทำให้ทราฟฟิกระดับประเทศถูกดักมาแล้วหลายครั้ง และ RPKI กำลังถูกบังคับใช้ทั่วโลก · ต่อยอด: ดึงข้อมูลสดจาก RIPE RIS / RouteViews, เตือนภัยแบบ real-time, เสนอ ASPA ปิดช่องโหว่ path ปลอม',
+  init: RK.init,
+  actions: {
+    legit: { label: '📣 ธนาคารประกาศ 203.0.113.0/24', run: s => RK.announce(s, 'legit') },
+    sameHijack: { label: '🏴 AS666 ประกาศ /24 เดียวกัน', run: s => RK.announce(s, 'sameHijack') },
+    subHijack: { label: '🏴 AS666 ประกาศ /25 เจาะจงกว่า', run: s => RK.announce(s, 'subHijack') },
+    forged: { label: '🏴 AS666 ปลอมต้นทาง + /25', run: s => RK.announce(s, 'forged') },
+    lookupBank: { label: '🔎 ส่งข้อมูลไปธนาคาร 203.0.113.10', run: s => RK.lookup(s, '203.0.113.10') },
+    rovOff: { label: '🔓 ปิด ROV', run: s => RK.setRov(s, false) },
+    rovOn: { label: '🔒 เปิด ROV', run: s => RK.setRov(s, true) },
+    loose: { label: '📝 ROA ธนาคาร maxLength /25 (หลวม)', run: s => RK.setMaxLen(s, 25) },
+    strict: { label: '📝 ROA ธนาคาร maxLength /24 (เข้ม)', run: s => RK.setMaxLen(s, 24) },
+    legit2: { label: '📣 มหาวิทยาลัยประกาศ 192.0.2.0/24', run: s => RK.announce(s, 'legit2') },
+    hijack2: { label: '🏴 AS666 ประกาศ 192.0.2.0/25', run: s => RK.announce(s, 'hijack2') },
+    uniRoa: { label: '📝 มหาวิทยาลัยออก ROA', run: RK.addUniRoa },
+    lookupUni: { label: '🔎 ส่งข้อมูลไปมหาวิทยาลัย 192.0.2.10', run: s => RK.lookup(s, '192.0.2.10') },
+  },
+  view: s => `<p>ROV: ${s.rov ? tag('ok', 'เปิด') : tag('bad-t', 'ปิด')}</p><table><tr><th>ROA (ใบรับรองว่าใครเป็นเจ้าของ)</th><th>เจ้าของ</th><th>maxLength</th></tr>` +
+    s.roas.map(r => `<tr><td>${r.prefix}</td><td>AS${r.asn}</td><td>/${r.maxLength}</td></tr>`).join('') +
+    '</table><h3>เส้นทางที่ได้รับ</h3>' + (s.rib.length ? '<table><tr><th>prefix</th><th>AS path</th><th>ผลตรวจ</th><th>ใช้งาน</th></tr>' +
+    s.rib.map(r => { const v = RK.validate(s.roas, r); return `<tr><td>${r.prefix}</td><td>${r.path.join(' ')}</td><td>${tag({ valid: 'ok', invalid: 'bad-t', notfound: 'warn-t' }[v], RK.LABEL[v])}</td><td>${RK.accepted(s, r) ? 'รับ' : 'ทิ้ง'}</td></tr>`; }).join('') + '</table>' : '<p class="muted">ยังไม่มี</p>') +
+    (s.lookup ? `<h3>ทราฟฟิกล่าสุด</h3><p>${s.lookup.ip} → ${s.lookup.route ? `${s.lookup.route.prefix} [${s.lookup.route.path.join(' ')}] ${s.lookup.hijacked ? '<span class="bad-t">ถูกดัก</span>' : '<span class="ok">ปลอดภัย</span>'}` : 'ไม่มีเส้นทาง'}</p>` : ''),
+  scenarios: [
+    { title: 'แย่ง prefix เดียวกัน', desc: 'AS666 อ้างว่าเป็นเจ้าของ /24 ของธนาคาร ROV ควรจับได้ทันที', steps: ['legit', 'lookupBank', 'sameHijack', 'lookupBank'] },
+    { title: 'แย่งด้วย /25 (ไม่มี ROV)', desc: 'เส้นทางที่เจาะจงกว่าชนะเสมอ ถ้าไม่ตรวจ ทราฟฟิกทั้งหมดถูกดัก แล้วเปิด ROV ดู', steps: ['rovOff', 'legit', 'subHijack', 'lookupBank', 'rovOn', 'lookupBank'] },
+    { title: 'ปลอมต้นทาง + ROA หลวม', desc: 'ผู้โจมตีใส่ AS ของธนาคารไว้ท้าย path — ถ้า ROA ตั้ง maxLength หลวม จะผ่านการตรวจเป็น Valid!', steps: ['legit', 'loose', 'forged', 'lookupBank', 'strict', 'lookupBank'] },
+    { title: 'ไม่มี ROA = ไม่มีการป้องกัน', desc: 'มหาวิทยาลัยยังไม่ทำ ROA เส้นทางปลอมได้สถานะ NotFound และถูกรับไว้', steps: ['legit2', 'hijack2', 'lookupUni', 'uniRoa', 'lookupUni'] },
+  ],
+});
+
+// ---- 5 Congestion lab ----
+const CL = CongestionLab;
+proj.push({
+  title: '5 · แล็บความยุติธรรมของ congestion control',
+  question: 'หลายโฟลว์แชร์ลิงก์คอขวดเดียวกัน AIMD แบ่งแบนด์วิดท์ได้ยุติธรรมจริงไหม? ถ้ามีโฟลว์ที่ไม่ยอมถอย หรือบัฟเฟอร์ใหญ่เกินไป จะเกิดอะไร?',
+  pitch: 'ทำไมกรรมการสนใจ: ความยุติธรรมระหว่าง TCP Cubic/BBR และปัญหา bufferbloat เป็นหัวข้อวิจัยที่ยังเปิดอยู่ · ต่อยอด: ทดลองจริงด้วย Linux tc/netem, เปรียบเทียบ BBRv3 กับ Cubic, ทดลอง AQM อย่าง CoDel/FQ-CoDel',
+  init: CL.init,
+  actions: {
+    run10: { label: '⏱ ผ่านไป 10 RTT', run: s => CL.run(s, 10) },
+    run1: { label: '⏱ ผ่านไป 1 RTT', run: s => CL.run(s, 1) },
+    addAimd: { label: '➕ เพิ่มโฟลว์ AIMD', run: s => CL.addFlow(s, 'aimd') },
+    addGreedy: { label: '➕ เพิ่มโฟลว์ไม่ถอย', run: s => CL.addFlow(s, 'greedy') },
+    bufBig: { label: '🪣 บัฟเฟอร์ใหญ่ (30)', run: s => CL.setBuffer(s, 30) },
+    bufSmall: { label: '🪣 บัฟเฟอร์เล็ก (5)', run: s => CL.setBuffer(s, 5) },
+  },
+  view: s => `<p class="muted">RTT ที่ ${s.rtt} · ลิงก์ ${CL.CAPACITY} แพ็กเก็ต/RTT · บัฟเฟอร์ ${s.buffer} · แพ็กเก็ตหายสะสม ${s.lossEvents} ครั้ง</p>` +
+    '<table><tr><th>โฟลว์</th><th>แบบ</th><th>cwnd ตอนนี้</th><th>throughput เฉลี่ยช่วงล่าสุด</th></tr>' +
+    s.flows.map(f => `<tr><td>${f.name}</td><td>${f.type === 'aimd' ? 'AIMD' : '<span class="warn-t">ไม่ถอย</span>'}</td><td>${f.cwnd}</td><td>${s.avg[f.name] != null ? s.avg[f.name].toFixed(2) : '—'}</td></tr>`).join('') +
+    `</table><table style="margin-top:10px"><tr><th>ความยุติธรรม (Jain, 1 = เท่ากันหมด)</th><td class="${s.fairness != null && s.fairness < 0.8 ? 'bad-t' : ''}">${s.fairness != null ? s.fairness.toFixed(2) : '—'}</td></tr>
+    <tr><th>คิวเฉลี่ย / หน่วงเพิ่ม</th><td class="${s.avgQueue / CL.CAPACITY > 1 ? 'bad-t' : ''}">${s.avgQueue.toFixed(1)} แพ็กเก็ต / ${(s.avgQueue / CL.CAPACITY).toFixed(2)} RTT</td></tr></table>`,
+  scenarios: [
+    { title: 'AIMD ลู่เข้าสู่ความยุติธรรม', desc: 'A เริ่มช้า B เริ่มเร็ว — ดูค่า Jain ขยับเข้าใกล้ 1 เมื่อเวลาผ่านไป', steps: ['run10', 'run10', 'run10'] },
+    { title: 'โฟลว์ไม่ยอมถอย', desc: 'เพิ่มโฟลว์ที่ไม่ลดความเร็วเมื่อแพ็กเก็ตหาย ดูว่า A และ B ถูกเบียดแค่ไหน', steps: ['run10', 'addGreedy', 'run10', 'run10', 'run10'] },
+    { title: 'Bufferbloat', desc: 'บัฟเฟอร์ใหญ่ทำให้แพ็กเก็ตหายน้อยลง แต่ทุกคนหน่วงขึ้นมาก', steps: ['bufBig', 'run10', 'run10', 'bufSmall', 'run10', 'run10'] },
+    { title: 'ผู้มาใหม่', desc: 'เพิ่มโฟลว์ที่สามเข้ามากลางทาง มันได้ส่วนแบ่งที่ยุติธรรมไหม?', steps: ['run10', 'run10', 'addAimd', 'run10', 'run10', 'run10'] },
+  ],
+});
+
+// ---- rendering ----
+const ui = { p: 0, tab: 'free', s: null, step: 0, log: [] };
+const $ = id => document.getElementById(id);
+function reset() { ui.s = proj[ui.p].init(); ui.step = 0; ui.log = []; }
+function render() {
+  const pr = proj[ui.p];
+  $('projects').innerHTML = proj.map((x, i) => `<button class="${i === ui.p ? 'on' : ''}" data-proj="${i}">${x.title}</button>`).join('');
+  const scen = ui.tab === 'free' ? null : pr.scenarios[ui.tab];
+  let h = `<h2>${pr.title}</h2><p class="question"><b>คำถาม:</b> ${pr.question}</p><p class="pitch">${pr.pitch}</p>`;
+  h += '<div class="tabs"><button class="' + (scen ? '' : 'on') + '" data-tab="free">เล่นอิสระ</button>' + pr.scenarios.map((x, i) => `<button class="${ui.tab === i ? 'on' : ''}" data-tab="${i}">สถานการณ์: ${x.title}</button>`).join('') + '</div>';
+  if (scen) h += `<p style="margin-top:12px">${scen.desc}</p>`;
+  h += '<h3>สถานะปัจจุบัน</h3><div class="panel">' + pr.view(ui.s) + '</div>';
+  h += `<div class="happened ${ui.s.last.bad ? 'bad' : ''}"><b>เพิ่งเกิดอะไรขึ้น:</b> ${ui.s.last.text}</div>`;
+  if (scen) {
+    h += '<h3>กดตามลำดับ</h3><ol class="steps">' + scen.steps.map((k, i) => `<li class="${i < ui.step ? 'done' : ''}"><span class="n">${i + 1}.</span><button data-step="${i}" class="${i === ui.step ? 'next' : ''}" ${i === ui.step ? '' : 'disabled'}>${pr.actions[k].label}</button></li>`).join('') + '</ol>';
+    if (ui.step >= scen.steps.length) h += '<p class="muted" style="margin-top:8px">จบสถานการณ์แล้ว — กด "เริ่มใหม่" เพื่อลองอีกครั้ง</p>';
+  } else {
+    h += '<h3>ปุ่มเล่นอิสระ</h3><div class="row">' + Object.entries(pr.actions).map(([k, a]) => `<button data-act="${k}">${a.label}</button>`).join('') + '</div>';
+  }
+  h += '<div class="row" style="margin-top:14px"><button data-reset="1">↺ เริ่มใหม่</button></div>';
+  if (ui.log.length) h += '<h3>ประวัติ</h3><ul class="log">' + ui.log.slice(-8).reverse().map(x => `<li>${x}</li>`).join('') + '</ul>';
+  $('project').innerHTML = h;
+}
+function apply(key) { ui.s = proj[ui.p].actions[key].run(ui.s); ui.log.push(ui.s.last.text); }
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t || t.disabled) return;
+  const d = t.dataset;
+  if (d.proj != null) { ui.p = Number(d.proj); ui.tab = 'free'; reset(); }
+  else if (d.tab != null) { ui.tab = d.tab === 'free' ? 'free' : Number(d.tab); reset(); }
+  else if (d.reset) reset();
+  else if (d.act) apply(d.act);
+  else if (d.step != null) { apply(proj[ui.p].scenarios[ui.tab].steps[Number(d.step)]); ui.step++; }
+  render();
+});
+reset(); render();
+</script>
+</body>
+</html>

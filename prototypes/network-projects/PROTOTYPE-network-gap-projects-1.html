@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PROTOTYPE — 10 โปรเจกต์เน็ตเวิร์กที่ยังไม่มีใครทำ (1–5)</title>
+<style>
+  :root { --bg:#fafaf9; --fg:#1c1917; --muted:#78716c; --line:#e7e5e4; --card:#fff; --accent:#0f766e; --accent-soft:#e6f4f1; --warn:#b45309; --warn-soft:#fffbeb; --bad:#b91c1c; --ok:#15803d; }
+  @media (prefers-color-scheme: dark) { :root { --bg:#1c1917; --fg:#f5f5f4; --muted:#a8a29e; --line:#3a3532; --card:#262220; --accent:#5eead4; --accent-soft:#163532; --warn:#fbbf24; --warn-soft:#3a2f12; --bad:#f87171; --ok:#4ade80; } }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--fg); font:16px/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", sans-serif; }
+  main { max-width:920px; margin:0 auto; padding:32px 16px 80px; }
+  h1 { font-size:1.5rem; margin:0 0 4px; }
+  h2 { font-size:1.2rem; margin:24px 0 8px; }
+  h3 { font-size:.8rem; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:24px 0 8px; }
+  p { margin:0 0 8px; }
+  .banner { background:var(--warn-soft); border:1px solid var(--line); color:var(--warn); padding:8px 12px; border-radius:8px; font-size:.9rem; margin-bottom:20px; }
+  .muted { color:var(--muted); }
+  .question { background:var(--accent-soft); border-radius:8px; padding:12px 14px; }
+  .pitch { font-size:.9rem; color:var(--muted); border-left:3px solid var(--line); padding-left:12px; }
+  .gap { font-size:.9rem; border-left:3px solid var(--accent); padding-left:12px; }
+  nav.projects { display:flex; flex-wrap:wrap; gap:6px; margin:16px 0 0; }
+  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:8px; padding:6px 12px; }
+  button:hover:not(:disabled) { border-color:var(--accent); }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  button.on { background:var(--accent); border-color:var(--accent); color:var(--bg); }
+  button.next { border-color:var(--accent); box-shadow:0 0 0 2px var(--accent-soft); }
+  .tabs { display:flex; flex-wrap:wrap; gap:4px; border-bottom:1px solid var(--line); margin-top:20px; padding-bottom:8px; }
+  .panel { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; overflow-x:auto; }
+  .happened { margin-top:10px; padding:10px 14px; border-left:3px solid var(--accent); background:var(--accent-soft); border-radius:4px; }
+  .happened.bad { border-color:var(--bad); }
+  table { border-collapse:collapse; width:100%; font-size:.92rem; }
+  th, td { text-align:left; padding:6px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { color:var(--muted); font-weight:500; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(190px, 1fr)); gap:10px; }
+  .tag { display:inline-block; padding:0 8px; border-radius:999px; font-size:.8rem; border:1px solid var(--line); margin:1px 0; }
+  .ok { color:var(--ok); } .bad-t { color:var(--bad); } .warn-t { color:var(--warn); }
+  .row { display:flex; flex-wrap:wrap; gap:6px; }
+  ol.steps { list-style:none; padding:0; margin:0; display:flex; flex-direction:column; gap:6px; }
+  ol.steps li { display:flex; gap:10px; align-items:center; }
+  ol.steps .n { width:1.6rem; color:var(--muted); text-align:right; }
+  .done button { text-decoration:line-through; }
+  ul.log, ul.plain { margin:0; padding-left:18px; font-size:.9rem; }
+  ul.log { color:var(--muted); }
+  code { background:var(--accent-soft); padding:0 4px; border-radius:4px; }
+</style>
+</head>
+<body>
+<main>
+  <h1>10 โปรเจกต์เน็ตเวิร์กที่โปรแกรมทั่วไปยังไม่มี · ตอนที่ 1 (โปรเจกต์ 1–5)</h1>
+  <div class="banner">⚠️ PROTOTYPE — โค้ดทิ้งได้ ไม่ใช่ของจริง · คำถาม: "แต่ละไอเดียมีตรรกะที่ใช้ได้จริงไหม และตอบโจทย์ที่เครื่องมือเน็ตเวิร์กทั่วไปในปัจจุบันยังทำไม่ได้หรือเปล่า" · เฉพาะ <code>&lt;script id="logic"&gt;</code> ที่ตั้งใจให้ยกไปใช้ต่อ · ไม่ซ้ำกับ 15 โปรเจกต์ในไฟล์ PROTOTYPE อื่นในโฟลเดอร์นี้ · โปรเจกต์ 6–10 อยู่ในไฟล์ <code>PROTOTYPE-network-gap-projects-2.html</code></div>
+  <p class="muted">เลือกโปรเจกต์ → ลองกดปุ่มเล่นอิสระ หรือเปิดแท็บ "สถานการณ์" แล้วกดไปตามลำดับ (ทุกแท็บเริ่มจากสถานะตั้งต้นเดียวกัน) · กรอบ "ช่องว่างที่ยังไม่มีใครทำ" บอกว่าเครื่องมือปัจจุบันขาดอะไร</p>
+  <nav class="projects" id="projects"></nav>
+  <section id="project"></section>
+</main>
+
+<!-- ============================================================
+     LOGIC — pure, no DOM. Liftable into the real codebase later.
+     ============================================================ -->
+<script id="logic">
+const msg = (text, bad = false) => ({ text, bad });
+
+// ---------- 1. Post-quantum TLS readiness: which hop breaks the big ClientHello ----------
+const PqTls = (() => {
+  const BASE = 420;                                   // ClientHello bytes without key shares
+  const SHARE = { x25519: 36, hybrid: 1220 };         // key_share entry incl. 4-byte header
+  const CLIENTS = {
+    classic: { label: 'คลาสสิก: X25519 อย่างเดียว', shares: ['x25519'], groups: ['x25519'] },
+    hybrid: { label: 'แบบเบราว์เซอร์ปัจจุบัน: X25519MLKEM768 + X25519', shares: ['hybrid', 'x25519'], groups: ['hybrid', 'x25519'] },
+    pqOnly: { label: 'ประหยัด: แนบ share แค่ X25519MLKEM768', shares: ['hybrid'], groups: ['hybrid', 'x25519'] },
+  };
+  const MIDDLEBOXES = { none: 'ไม่มี', dpi: 'ไฟร์วอลล์ DPI ที่อ่าน SNI จากแพ็กเก็ตแรกเท่านั้น', intolerant: 'อุปกรณ์ที่ตัดทิ้งเมื่อเจอ group ที่ไม่รู้จัก' };
+  const GROUP = { x25519: 'X25519 (ไม่ทนควอนตัม)', hybrid: 'X25519MLKEM768 (ทนควอนตัม)' };
+  const init = () => ({ client: 'hybrid', server: 'pq', middlebox: 'none', tunnel: false, icmp: true, clamp: false, fallback: false, result: null,
+    last: msg('เบราว์เซอร์ส่ง key share แบบ post-quantum (X25519MLKEM768) ซึ่งทำให้ ClientHello ใหญ่ขึ้นจาก ~450 เป็น ~1,700 ไบต์ — เกิน 1 แพ็กเก็ต · กด "เชื่อมต่อ" เพื่อดูว่าทางนี้ผ่านไหม') });
+
+  // One TLS 1.3 handshake attempt over the configured path. Pure.
+  function attempt(net, clientKey) {
+    const c = CLIENTS[clientKey];
+    const size = BASE + c.shares.reduce((a, k) => a + SHARE[k], 0);
+    const mtu = net.tunnel ? 1400 : 1500;
+    const mss = net.clamp ? mtu - 40 : 1460;
+    const segs = [];
+    for (let left = size; left > 0; left -= mss) segs.push(Math.min(mss, left));
+    const log = [`ClientHello ${size} ไบต์ → ${segs.length} TCP segment (${segs.join(' + ')} ไบต์ · MSS ${mss})`];
+    let rtt = 1;
+    const fail = why => ({ ok: false, size, segs, rtt, log: [...log, '❌ ' + why], why });
+    const big = segs.find(n => n + 40 > mtu);
+    if (big) {
+      if (!net.icmp) return fail(`แพ็กเก็ต ${big + 40} ไบต์ใหญ่กว่า MTU ของอุโมงค์ (${mtu}) และ ICMP "Packet Too Big" ถูกบล็อก → ส่งซ้ำกี่ครั้งก็หายเงียบ (PMTU black hole) → หน้าเว็บหมุนค้างจนหมดเวลา`);
+      rtt += 1;
+      log.push(`แพ็กเก็ต ${big + 40} ไบต์ใหญ่กว่าอุโมงค์ → ได้ ICMP กลับ → ลดขนาดแล้วส่งซ้ำ (+1 RTT)`);
+    }
+    if (net.middlebox === 'dpi' && segs.length > 1) return fail('ไฟร์วอลล์ได้ ClientHello ไม่ครบในแพ็กเก็ตแรก อ่าน SNI ไม่เจอ → ส่ง TCP RST ตัดทิ้ง');
+    if (net.middlebox === 'intolerant' && c.groups.includes('hybrid')) return fail('อุปกรณ์กลางทางไม่รู้จักรหัส group 0x11EC → ตอบ handshake_failure');
+    let group;
+    if (net.server === 'pq' && c.shares.includes('hybrid')) group = 'hybrid';
+    else if (c.shares.includes('x25519')) group = 'x25519';
+    else {
+      rtt += 1; group = 'x25519';
+      log.push('เซิร์ฟเวอร์ไม่รองรับ ML-KEM และไคลเอนต์ไม่ได้แนบ share X25519 มา → HelloRetryRequest (+1 RTT)');
+    }
+    log.push(`✅ ตกลงใช้ ${GROUP[group]}`);
+    return { ok: true, size, segs, rtt, log, group };
+  }
+
+  const connect = s => {
+    let r = attempt(s, s.client);
+    if (!r.ok && s.fallback && s.client !== 'classic') {
+      const r2 = attempt(s, 'classic');
+      r = { ...r2, rtt: r.rtt + r2.rtt, log: [...r.log, '↩ ไคลเอนต์ลองใหม่โดยตัด PQ ออก', ...r2.log], downgraded: true };
+    }
+    const text = !r.ok ? `ต่อไม่ได้ — ${r.why}`
+      : r.downgraded ? `ต่อได้หลัง fallback ใน ${r.rtt} RTT แต่ไม่ทนควอนตัมแล้ว · และใครก็ตามที่ส่ง RST ปลอมได้ ก็บังคับ downgrade แบบนี้ได้ทุกครั้ง`
+      : `ต่อได้ใน ${r.rtt} RTT ด้วย ${GROUP[r.group]}`;
+    return { ...s, result: r, last: msg(text, !r.ok || !!r.downgraded) };
+  };
+  const compare = s => Object.keys(CLIENTS).map(k => ({ key: k, ...attempt(s, k) }));
+  const set = (s, patch, text) => ({ ...s, ...patch, result: null, last: msg(text) });
+  return { CLIENTS, MIDDLEBOXES, GROUP, init, connect, compare, set };
+})();
+
+// ---------- 2. Gray-failure-aware multi-WAN failover ----------
+const Wan = (() => {
+  const COND = { healthy: 'ปกติ', down: 'ล่มสนิท', lossy: 'แพ็กเก็ตหาย 25%', dns: 'ping ได้ แต่ DNS/เว็บพัง', flap: 'ติด-ดับสลับ (ดับ 3 ติด 2)' };
+  const WIN = 8, HOLD = 6, LOW = 85, MARGIN = 10;
+  const probe = (cond, t) => ({
+    healthy: [1, 1, 1], down: [0, 0, 0], dns: [1, 0, 0],
+    lossy: t % 4 === 0 ? [0, 0, 0] : [1, 1, 1],
+    flap: t % 5 < 3 ? [0, 0, 0] : [1, 1, 1],
+  })[cond];
+  const userOk = (cond, t) => cond === 'healthy' || (cond === 'flap' && t % 5 >= 3);
+  const score = hist => Math.round(100 * hist.flat().reduce((a, b) => a + b, 0) / (hist.length * 3));
+  const strat = () => ({ on: 'fiber', lostRun: 0, goodRun: 0, switches: 0, bad: 0, lteTicks: 0, alert: false });
+  const init = () => ({
+    t: 0, cond: { fiber: 'healthy', lte: 'healthy' },
+    hist: { fiber: Array(WIN).fill([1, 1, 1]), lte: Array(WIN).fill([1, 1, 1]) },
+    naive: strat(), smart: strat(), events: [],
+    last: msg('สาขามีไฟเบอร์เป็นเส้นหลักและ 4G เป็นสำรอง · ระบบธรรมดา: ping 1.1.1.1 หาย 3 ครั้งติดจึงสลับ และกลับทันทีที่ ping ได้ · ระบบที่เสนอ: วัด ping + DNS + เว็บจริง คิดคะแนนย้อนหลัง 8 รอบ และรอให้เส้นหลักดีติดกัน 6 รอบก่อนกลับ'),
+  });
+  const scores = s => ({ fiber: score(s.hist.fiber), lte: score(s.hist.lte) });
+
+  function tick(s) {
+    const t = s.t, pf = probe(s.cond.fiber, t), pl = probe(s.cond.lte, t);
+    const hist = { fiber: [...s.hist.fiber.slice(1), pf], lte: [...s.hist.lte.slice(1), pl] };
+    const sc = { fiber: score(hist.fiber), lte: score(hist.lte) };
+    const events = [...s.events];
+    const experience = (st) => {
+      const cond = s.cond[st.on];
+      return { ...st, bad: st.bad + (userOk(cond, t) ? 0 : 1), lteTicks: st.lteTicks + (st.on === 'lte' ? 1 : 0) };
+    };
+    // naive: ping-only, 3 consecutive losses, return on first success
+    let n = experience(s.naive);
+    n.lostRun = pf[0] ? 0 : n.lostRun + 1;
+    if (n.on === 'fiber' && n.lostRun >= 3) { n = { ...n, on: 'lte', switches: n.switches + 1 }; events.push(`วินาที ${t * 10}: ระบบธรรมดาสลับไป 4G`); }
+    else if (n.on === 'lte' && pf[0]) { n = { ...n, on: 'fiber', switches: n.switches + 1 }; events.push(`วินาที ${t * 10}: ระบบธรรมดากลับไฟเบอร์ (ping ได้ 1 ครั้ง)`); }
+    // smart: scored window, never fail over to something worse, hold-down before returning
+    let m = experience(s.smart);
+    m.goodRun = pf.every(Boolean) ? m.goodRun + 1 : 0;
+    if (m.on === 'fiber' && sc.fiber < LOW) {
+      if (sc.lte >= sc.fiber + MARGIN) { m = { ...m, on: 'lte', switches: m.switches + 1, alert: false }; events.push(`วินาที ${t * 10}: ระบบที่เสนอสลับไป 4G (คะแนน ${sc.fiber} vs ${sc.lte})`); }
+      else if (!m.alert) { m = { ...m, alert: true }; events.push(`วินาที ${t * 10}: ระบบที่เสนอไม่สลับ เพราะ 4G แย่กว่า (${sc.lte}) → แจ้งเตือนคนแทน`); }
+    } else if (m.on === 'lte' && m.goodRun >= HOLD) { m = { ...m, on: 'fiber', switches: m.switches + 1 }; events.push(`วินาที ${t * 10}: ระบบที่เสนอกลับไฟเบอร์ (ดีติดกัน ${HOLD} รอบ)`); }
+    const mark = p => `ping ${p[0] ? '✓' : '✗'} DNS ${p[1] ? '✓' : '✗'} เว็บ ${p[2] ? '✓' : '✗'}`;
+    return { ...s, t: t + 1, hist, naive: n, smart: m, events,
+      last: msg(`วินาที ${t * 10}: ไฟเบอร์ ${mark(pf)} · 4G ${mark(pl)} · คะแนน ไฟเบอร์ ${sc.fiber} / 4G ${sc.lte}`, !userOk(s.cond.fiber, t)) };
+  }
+  const run = (s, k) => { let x = s; for (let i = 0; i < k; i++) x = tick(x); return x; };
+  const setCond = (s, link, cond) => ({ ...s, cond: { ...s.cond, [link]: cond }, last: msg(`${link === 'fiber' ? 'ไฟเบอร์' : '4G'}: ${COND[cond]}`) });
+  return { COND, WIN, HOLD, LOW, init, tick, run, setCond, scores };
+})();
+
+// ---------- 3. Shared-risk (SRLG) "fake redundancy" finder ----------
+const Srlg = (() => {
+  const RISK = {
+    riser: 'ท่อเข้าตึกด้านหน้า', duct: 'ท่อใต้ดินในซอยหน้าตึก', pole: 'แนวเสาไฟถนนใหญ่', coA: 'ชุมสาย ISP-A', coB: 'ชุมสาย ISP-B',
+    bridge: 'สายพาดใต้สะพานข้ามคลอง', riser2: 'ท่อเข้าตึกด้านหลัง', duct2: 'ท่อใต้ดินถนนด้านหลัง', tower: 'เสา 4G ใกล้ตึก',
+    r1: 'เราเตอร์หลัก', r2: 'เราเตอร์สำรอง', ups1: 'UPS ตัวที่ 1', ups2: 'UPS ตัวที่ 2 (ไฟอีกเฟส)',
+  };
+  const init = () => ({ diverse: false, router2: false, lte: false, failed: [],
+    last: msg('สำนักงานซื้อเน็ตสองค่าย (ISP-A และ ISP-B) เพื่อ "สำรองกัน" · ตารางด้านล่างคือเส้นทางทางกายภาพจริงที่ได้จากแบบแปลนของ ISP และอาคาร') });
+  const paths = s => {
+    const p = [
+      { name: 'ไฟเบอร์ ISP-A', risks: ['riser', 'duct', 'pole', 'coA', 'r1', 'ups1'] },
+      { name: 'ไฟเบอร์ ISP-B', risks: [...(s.diverse ? ['riser2', 'duct2'] : ['riser', 'duct']), 'bridge', 'coB', ...(s.router2 ? ['r2', 'ups2'] : ['r1', 'ups1'])] },
+    ];
+    if (s.lte) p.push({ name: '4G สำรอง', risks: ['tower', 'r1', 'ups1'] });
+    return p;
+  };
+  const alive = (s, p) => !p.risks.some(r => s.failed.includes(r));
+  const up = s => paths(s).some(p => alive(s, p));
+  const spof = s => { const ps = paths(s); return ps[0].risks.filter(r => ps.every(p => p.risks.includes(r))); };
+  // Smallest sets of physical risks whose joint failure cuts every path (brute force, k ≤ 3).
+  function minCuts(s) {
+    const ps = paths(s), all = [...new Set(ps.flatMap(p => p.risks))];
+    const combos = (k, start = 0) => k === 0 ? [[]] : all.slice(start).flatMap((r, i) => combos(k - 1, start + i + 1).map(c => [r, ...c]));
+    for (let k = 1; k <= 3; k++) {
+      const cuts = combos(k).filter(c => ps.every(p => p.risks.some(r => c.includes(r))));
+      if (cuts.length) return { size: k, cuts };
+    }
+    return { size: '> 3', cuts: [] };
+  }
+  const fail = (s, r, what) => {
+    const failed = [...new Set([...s.failed, r])], n = { ...s, failed };
+    return { ...n, last: msg(`${what} → ${up(n) ? 'อินเทอร์เน็ตยังใช้ได้ ✅ ผ่าน ' + paths(n).filter(p => alive(n, p)).map(p => p.name).join(', ') : 'อินเทอร์เน็ตดับทั้งสำนักงาน ❌ ทั้งที่จ่ายเงินสำรองไว้'}`, !up(n)) };
+  };
+  const change = (s, patch, text) => {
+    const n = { ...s, ...patch }, c = minCuts(n);
+    const now = n.failed.length ? ` · ตอนนี้อินเทอร์เน็ต${up(n) ? 'กลับมาใช้ได้ ✅' : 'ยังดับ ❌'}` : '';
+    return { ...n, last: msg(`${text} · ต้องพังพร้อมกันอย่างน้อย ${c.size} จุดเน็ตจึงจะดับ${c.size === 1 ? ' (ยังมีจุดตายเดียว)' : ''}${now}`, !up(n)) };
+  };
+  const repair = s => ({ ...s, failed: [], last: msg('ซ่อมทุกอย่างกลับมาแล้ว') });
+  return { RISK, init, paths, alive, up, spof, minCuts, fail, change, repair };
+})();
+
+// ---------- 4. Lock-out-safe config rollout ordering ----------
+const Rollout = (() => {
+  const ROUTERS = ['R1', 'R2', 'R3', 'R4'];
+  const LINKS = [['NOC', 'R1'], ['R1', 'R2'], ['R2', 'R3'], ['R1', 'R4']];
+  const OPS = { swap: 'เปลี่ยน VLAN จัดการ 10 → 20', add: 'เพิ่ม VLAN 20 (ยังเก็บ 10)', del: 'ลบ VLAN 10' };
+  const PLANS = {
+    near: { label: 'สลับทีละตัว ใกล้ก่อน', steps: ['R1', 'R2', 'R4', 'R3'].map(r => ({ r, op: 'swap' })) },
+    far: { label: 'สลับทีละตัว ไกลก่อน', steps: ['R3', 'R2', 'R4', 'R1'].map(r => ({ r, op: 'swap' })) },
+    mbb: { label: 'เพิ่มใหม่ก่อน ลบเก่าทีหลัง (make-before-break)', steps: [...ROUTERS.map(r => ({ r, op: 'add' })), ...['R3', 'R2', 'R4', 'R1'].map(r => ({ r, op: 'del' }))] },
+  };
+  const applyOp = (vl, op) => op === 'swap' ? [20] : op === 'add' ? [...new Set([...vl, 20])].sort() : vl.filter(v => v !== 10);
+  // Routers the NOC can manage: some VLAN carried end-to-end (NOC trunk carries 10 and 20).
+  function reachable(vlans) {
+    const out = new Set();
+    for (const v of [10, 20]) {
+      const seen = new Set(['NOC']), q = ['NOC'];
+      while (q.length) {
+        const x = q.shift();
+        for (const [a, b] of LINKS) {
+          const y = a === x ? b : b === x ? a : null;
+          if (y && !seen.has(y) && vlans[y].includes(v)) { seen.add(y); q.push(y); out.add(y); }
+        }
+      }
+    }
+    return out;
+  }
+  const init = () => ({ plan: 'near', idx: 0, vlans: Object.fromEntries(ROUTERS.map(r => [r, [10]])), preflight: false, cc: false, typo: false,
+    last: msg('ต้องย้าย VLAN สำหรับจัดการอุปกรณ์จาก 10 ไป 20 บนเราเตอร์ 4 ตัว โดย NOC สั่งงานผ่านเครือข่ายเดียวกับที่กำลังแก้ · NOC พร้อมใช้ทั้ง VLAN 10 และ 20 แล้ว') });
+
+  function push(s) {
+    const plan = PLANS[s.plan];
+    if (s.idx >= plan.steps.length) return { ...s, last: msg('แผนนี้ส่งครบทุกขั้นแล้ว') };
+    const { r, op } = plan.steps[s.idx];
+    const label = `ขั้น ${s.idx + 1}: ${r} ${OPS[op]}`;
+    const before = reachable(s.vlans);
+    if (!before.has(r)) return { ...s, idx: s.idx + 1, last: msg(`${label} — ส่งไม่ถึง ${r} เพราะเข้าไม่ได้แล้ว 🚚 ต้องส่งช่างไปหน้างาน`, true) };
+    const next = { ...s.vlans, [r]: applyOp(s.vlans[r], op) };
+    const after = reachable(next);
+    const lost = ROUTERS.filter(x => before.has(x) && !after.has(x));
+    if (s.preflight && lost.length) return { ...s, last: msg(`🛑 ตัวตรวจล่วงหน้าไม่ยอมส่ง "${label}" เพราะจำลองแล้วจะเข้า ${lost.join(', ')} ไม่ได้ — ลองแผน make-before-break`, true) };
+    if (s.typo && r === 'R2') return { ...s, idx: s.idx + 1, last: msg(`${label} — R2 ปฏิเสธ config เพราะพิมพ์ผิด ค่ายังเป็นของเดิม`, true) };
+    if (s.cc && !after.has(r)) return { ...s, idx: s.idx + 1, last: msg(`${label} — หลังเปลี่ยน ${r} เข้าไม่ได้ ยืนยันไม่ได้ → commit confirmed ย้อนค่ากลับเองใน 10 นาที (ขั้นนี้ไม่สำเร็จ)`, true) };
+    const note = lost.length ? ` — แต่ตอนนี้เข้า ${lost.join(', ')} ไม่ได้แล้ว!${s.cc && after.has(r) ? ` (commit confirmed ของ ${r} ยืนยันผ่าน เพราะตัว ${r} เองยังเข้าได้ มันไม่รู้ว่าตัดเครื่องอื่น)` : ''}` : ' ✓';
+    return { ...s, vlans: next, idx: s.idx + 1, last: msg(label + note, lost.length > 0) };
+  }
+  const setPlan = (s, plan) => ({ ...s, plan, idx: 0, last: msg(`ใช้แผน: ${PLANS[plan].label} (${PLANS[plan].steps.length} ขั้น)`) });
+  const toggle = (s, key, text) => ({ ...s, [key]: true, last: msg(text) });
+  return { ROUTERS, PLANS, OPS, init, reachable, push, setPlan, toggle };
+})();
+
+// ---------- 5. CGNAT-aware login rate limiting ----------
+const Rate = (() => {
+  const POP = 300, ACTIVE = 30, NEWCOMERS = 2, ATTACK = 80;
+  const IP_LIMIT = 50, TOKEN_LIMIT = 5, ACCT_LIMIT = 5, BAN_TICKS = 3;
+  const POLICIES = { ip: 'จำกัดต่อ IP (แบบ fail2ban / limit_req)', token: 'จำกัดต่อคุกกี้', adaptive: 'แบบรู้ว่า IP ถูกแชร์ (ข้อเสนอ)' };
+  const IPS = { CG: '49.228.x.x (CGNAT มือถือ ใช้ร่วม 300 คน)', HOME: '171.96.x.x (เน็ตบ้านของผู้โจมตี)' };
+  const zero = () => ({ blocked: 0, challenged: 0, passed: 0 });
+  const init = () => ({ t: 0, where: 'CG', mode: 'fixed', ban: {}, est: Object.fromEntries(Array.from({ length: POP }, (_, i) => [`u${i}`, 'CG'])),
+    tickRes: null, totals: { ip: zero(), token: zero(), adaptive: zero() },
+    last: msg('เว็บมีผู้ใช้ 300 คนที่ออกเน็ตผ่าน IP มือถือเดียวกัน (CGNAT) · ผู้โจมตีลองรหัสผ่าน 80 ครั้งต่อนาที · เปรียบเทียบนโยบายจำกัดอัตรา 3 แบบพร้อมกัน') });
+
+  function traffic(s) {
+    const good = [];
+    for (let i = 0; i < ACTIVE; i++) good.push({ ip: 'CG', token: `u${(s.t * ACTIVE + i) % POP}`, acct: `user${i}`, human: true });
+    for (let i = 0; i < NEWCOMERS; i++) good.push({ ip: 'CG', token: `n${s.t}-${i}`, acct: `new${s.t}-${i}`, human: true });
+    const bad = [];
+    if (s.mode !== 'quiet') for (let i = 0; i < ATTACK; i++) bad.push({ ip: s.where, token: s.mode === 'fixed' ? 'atk' : `atk${s.t}-${i}`, acct: s.mode === 'stuff' ? `victim${i}` : 'somchai', human: false });
+    const out = [];
+    const step = bad.length ? Math.max(1, Math.floor(good.length / bad.length)) : 0;
+    let g = 0, b = 0;
+    while (g < good.length || b < bad.length) {
+      if (b < bad.length && (g >= good.length || (step && g % step === 0) || step === 0)) out.push(bad[b++]);
+      if (g < good.length) out.push(good[g++]);
+    }
+    return out;
+  }
+
+  function tick(s) {
+    const reqs = traffic(s);
+    const res = { ip: zero(), token: zero(), adaptive: zero() };
+    const count = (k, r, verdict) => {
+      if (r.human) { if (verdict === 'block') res[k].blocked++; if (verdict === 'challenge') res[k].challenged++; }
+      else if (verdict === 'pass') res[k].passed++;
+    };
+    // per-IP with ban
+    const ban = { ...s.ban }, perIp = {};
+    for (const r of reqs) {
+      if (ban[r.ip] > 0) { count('ip', r, 'block'); continue; }
+      perIp[r.ip] = (perIp[r.ip] || 0) + 1;
+      if (perIp[r.ip] > IP_LIMIT) { ban[r.ip] = BAN_TICKS; count('ip', r, 'block'); } else count('ip', r, 'pass');
+    }
+    // per-token
+    const perTok = {};
+    for (const r of reqs) { perTok[r.token] = (perTok[r.token] || 0) + 1; count('token', r, perTok[r.token] > TOKEN_LIMIT ? 'block' : 'pass'); }
+    // adaptive: per-token + new-token budget scaled by the IP's known population + per-account failures
+    const est = { ...s.est }, pop = ip => Object.values(s.est).filter(x => x === ip).length;
+    const budget = ip => Math.max(2, Math.ceil(0.02 * pop(ip)));
+    const fresh = {}, perTokA = {}, acctFail = {};
+    for (const r of reqs) {
+      perTokA[r.token] = (perTokA[r.token] || 0) + 1;
+      let v = 'pass';
+      if (perTokA[r.token] > TOKEN_LIMIT) v = 'block';
+      else if (!s.est[r.token]) {
+        fresh[r.ip] = fresh[r.ip] || new Set();
+        if (!fresh[r.ip].has(r.token) && fresh[r.ip].size >= budget(r.ip)) v = 'challenge';
+        else fresh[r.ip].add(r.token);
+      }
+      if (v === 'pass' && !r.human && (acctFail[r.acct] || 0) >= ACCT_LIMIT) v = 'challenge';
+      if (v === 'challenge') { count('adaptive', r, 'challenge'); if (!r.human) continue; v = 'pass'; } // humans solve the CAPTCHA, bots don't
+      count('adaptive', r, v);
+      if (v === 'pass' && r.human) est[r.token] = r.ip;
+      if (v === 'pass' && !r.human) acctFail[r.acct] = (acctFail[r.acct] || 0) + 1;
+    }
+    for (const ip of Object.keys(ban)) ban[ip] = Math.max(0, ban[ip] - 1);
+    const totals = Object.fromEntries(Object.keys(res).map(k => [k, Object.fromEntries(Object.keys(res[k]).map(f => [f, s.totals[k][f] + res[k][f]]))]));
+    const worst = res.ip.blocked ? `นโยบายต่อ IP บล็อกผู้ใช้บริสุทธิ์ ${res.ip.blocked} คำขอ` : 'ไม่มีผู้ใช้บริสุทธิ์ถูกบล็อก';
+    return { ...s, t: s.t + 1, ban, est, tickRes: res, totals,
+      last: msg(`นาทีที่ ${s.t + 1}: ${worst} · ผู้โจมตีผ่าน: ต่อ IP ${res.ip.passed} / ต่อคุกกี้ ${res.token.passed} / ข้อเสนอ ${res.adaptive.passed}`, res.ip.blocked > 0 || res.token.passed > TOKEN_LIMIT) };
+  }
+  const MODES = { fixed: 'ใช้คุกกี้เดิม ลองบัญชีเดียว', rotate: 'ล้างคุกกี้ทุกครั้ง ลองบัญชีเดียว', stuff: 'ล้างคุกกี้ทุกครั้ง ลองคนละบัญชี (credential stuffing)', quiet: 'หยุดโจมตี' };
+  const setMode = (s, mode) => ({ ...s, mode, last: msg(`ผู้โจมตี: ${MODES[mode]}`) });
+  const setWhere = (s, where) => ({ ...s, where, last: msg(`ผู้โจมตีออกเน็ตผ่าน ${IPS[where]}`) });
+  return { POLICIES, IPS, MODES, IP_LIMIT, TOKEN_LIMIT, ACCT_LIMIT, ATTACK, ACTIVE, NEWCOMERS, init, tick, setMode, setWhere };
+})();
+</script>
+
+<!-- ============================================================
+     PAGE — throwaway shell over the logic above.
+     ============================================================ -->
+<script>
+const proj = [];
+const tag = (cls, text) => `<span class="tag ${cls}">${text}</span>`;
+const yes = (b, t = 'ใช่', f = 'ไม่') => b ? tag('ok', t) : tag('', f);
+
+// ---- 1 PQ TLS ----
+const pqActs = {};
+for (const [k, c] of Object.entries(PqTls.CLIENTS)) pqActs['cli_' + k] = { label: `💻 ไคลเอนต์: ${c.label}`, run: s => PqTls.set(s, { client: k }, `ไคลเอนต์: ${c.label}`) };
+for (const [k, m] of Object.entries(PqTls.MIDDLEBOXES)) pqActs['mb_' + k] = { label: `🧱 กลางทาง: ${m}`, run: s => PqTls.set(s, { middlebox: k }, `อุปกรณ์กลางทาง: ${m}`) };
+Object.assign(pqActs, {
+  srvClassic: { label: '🖥 เซิร์ฟเวอร์ไม่รองรับ PQ', run: s => PqTls.set(s, { server: 'classic' }, 'เซิร์ฟเวอร์รุ่นเก่า รู้จักแค่ X25519') },
+  srvPq: { label: '🖥 เซิร์ฟเวอร์รองรับ PQ', run: s => PqTls.set(s, { server: 'pq' }, 'เซิร์ฟเวอร์รองรับ X25519MLKEM768') },
+  tunnel: { label: '🔒 ผ่านอุโมงค์ VPN (MTU 1400)', run: s => PqTls.set(s, { tunnel: true }, 'เส้นทางผ่านอุโมงค์ที่ MTU เหลือ 1400 แต่เครื่องยังคิดว่า 1500') },
+  icmpOff: { label: '🚫 บล็อก ICMP ทั้งหมด', run: s => PqTls.set(s, { icmp: false }, 'ไฟร์วอลล์บล็อก ICMP ทุกชนิด "เพื่อความปลอดภัย"') },
+  clamp: { label: '📏 เปิด MSS clamping ที่อุโมงค์', run: s => PqTls.set(s, { clamp: true }, 'อุโมงค์แก้ MSS ใน SYN ให้พอดี MTU จริง') },
+  fallback: { label: '↩ เปิด fallback ตัด PQ เมื่อพัง', run: s => PqTls.set(s, { fallback: true }, 'ถ้าต่อไม่ได้ ไคลเอนต์จะลองใหม่โดยไม่ใช้ PQ') },
+  connect: { label: '🔌 เชื่อมต่อ', run: PqTls.connect },
+});
+proj.push({
+  title: '1 · ตรวจหาจุดที่ทำ TLS แบบ post-quantum พัง',
+  question: 'เมื่อเบราว์เซอร์ส่ง key share แบบทนควอนตัม (ML-KEM) ทำให้ ClientHello ใหญ่เกิน 1 แพ็กเก็ต อุปกรณ์แบบไหนกลางทางที่ทำให้ "เว็บบางเว็บเข้าไม่ได้" และ fallback ที่ดูเหมือนช่วย กลับเปิดช่อง downgrade หรือเปล่า?',
+  gap: 'ช่องว่างที่ยังไม่มีใครทำ: เครื่องมืออย่าง ping, traceroute หรือ SSL checker ทดสอบด้วย ClientHello ขนาดเล็กแบบเดิม จึงบอกว่า "ปกติ" ทั้งที่ผู้ใช้จริงเข้าไม่ได้ · ยังไม่มีเครื่องมือทั่วไปที่ส่ง ClientHello หลายขนาดเทียบกันแล้วระบุว่า hop ไหน (ไฟร์วอลล์, VPN, ICMP) เป็นต้นเหตุ',
+  pitch: 'ใช้ได้จริงตอนนี้: เบราว์เซอร์หลักเปิด X25519MLKEM768 เป็นค่าเริ่มต้นแล้ว และองค์กรต้องเตรียมรับมือ "harvest now, decrypt later" · ต่อยอด: ทำสแกนเนอร์ด้วย OpenSSL 3.5 ที่มี ML-KEM ส่ง ClientHello 500/1,700/3,000 ไบต์ ใช้ TTL ไล่หา hop ที่ตัด แล้วสรุปเป็นรายงานสำหรับทีมไอที',
+  init: PqTls.init, actions: pqActs,
+  view: s => {
+    const r = s.result;
+    return `<table><tr><th>ไคลเอนต์</th><td>${PqTls.CLIENTS[s.client].label}</td><th>เซิร์ฟเวอร์</th><td>${s.server === 'pq' ? 'รองรับ PQ' : 'ไม่รองรับ PQ'}</td></tr>` +
+      `<tr><th>อุปกรณ์กลางทาง</th><td>${PqTls.MIDDLEBOXES[s.middlebox]}</td><th>เส้นทาง</th><td>${s.tunnel ? 'อุโมงค์ MTU 1400' : 'ปกติ MTU 1500'} · ICMP ${s.icmp ? 'ผ่าน' : '<span class="warn-t">ถูกบล็อก</span>'} · MSS clamp ${s.clamp ? 'เปิด' : 'ปิด'}</td></tr>` +
+      `<tr><th>fallback</th><td colspan="3">${s.fallback ? '<span class="warn-t">เปิด (ตัด PQ แล้วลองใหม่)</span>' : 'ปิด'}</td></tr></table>` +
+      (r ? `<h3>การเชื่อมต่อล่าสุด</h3><ul class="plain">${r.log.map(l => `<li>${l}</li>`).join('')}</ul>` : '') +
+      '<h3>ไคลเอนต์ทั้ง 3 แบบบนเส้นทางนี้ (ไม่มี fallback)</h3><table><tr><th>ไคลเอนต์</th><th>ขนาด ClientHello</th><th>แพ็กเก็ต</th><th>ผล</th></tr>' +
+      PqTls.compare(s).map(c => `<tr><td>${PqTls.CLIENTS[c.key].label}</td><td>${c.size} ไบต์</td><td>${c.segs.length}</td><td>${c.ok ? tag(c.group === 'hybrid' ? 'ok' : 'warn-t', `${c.rtt} RTT · ${PqTls.GROUP[c.group]}`) : tag('bad-t', 'พัง')}</td></tr>`).join('') + '</table>';
+  },
+  scenarios: [
+    { title: 'ปกติ: ได้ PQ ฟรี', desc: 'เส้นทางสะอาด — PQ ใช้ได้ 1 RTT เท่าเดิม แม้ ClientHello จะเป็น 2 แพ็กเก็ต และถ้าเซิร์ฟเวอร์เก่าก็แค่ได้ X25519', steps: ['connect', 'srvClassic', 'connect'] },
+    { title: 'ไฟร์วอลล์อ่านแค่แพ็กเก็ตแรก', desc: 'อาการคลาสสิก: เว็บเดียวกันเข้าได้จากเบราว์เซอร์เก่า แต่เบราว์เซอร์ใหม่โดนตัด — ping และ SSL checker บอกว่าปกติทุกอย่าง', steps: ['mb_dpi', 'connect', 'cli_classic', 'connect'] },
+    { title: 'VPN + บล็อก ICMP', desc: 'แพ็กเก็ตแรกของ ClientHello ใหญ่กว่าอุโมงค์ ถ้า ICMP ถูกบล็อกจะหายเงียบ — แก้ที่ต้นเหตุด้วย MSS clamping', steps: ['tunnel', 'connect', 'icmpOff', 'connect', 'clamp', 'connect'] },
+    { title: 'fallback = ช่อง downgrade', desc: 'อุปกรณ์กลางทางไม่ยอมรับ group ใหม่ ไคลเอนต์ที่ fallback ต่อได้ — แต่สังเกตว่าตอนนี้ผู้โจมตีก็ทำให้ PQ หายไปได้เหมือนกัน', steps: ['mb_intolerant', 'connect', 'fallback', 'connect'] },
+    { title: 'ประหยัด share เจอเซิร์ฟเวอร์เก่า', desc: 'ไคลเอนต์แนบแค่ share PQ เพื่อลดขนาด — กับเซิร์ฟเวอร์เก่าต้องเสีย 1 RTT ไปกับ HelloRetryRequest', steps: ['cli_pqOnly', 'connect', 'srvClassic', 'connect'] },
+  ],
+});
+
+// ---- 2 WAN ----
+const wanActs = {};
+for (const [k, c] of Object.entries(Wan.COND)) wanActs['f_' + k] = { label: `🌐 ไฟเบอร์: ${c}`, run: s => Wan.setCond(s, 'fiber', k) };
+for (const k of ['healthy', 'down', 'dns']) wanActs['l_' + k] = { label: `📶 4G: ${Wan.COND[k]}`, run: s => Wan.setCond(s, 'lte', k) };
+Object.assign(wanActs, { tick: { label: '⏱ ผ่านไป 10 วินาที', run: Wan.tick }, tick5: { label: '⏩ ผ่านไป 50 วินาที', run: s => Wan.run(s, 5) } });
+proj.push({
+  title: '2 · สลับเน็ตสำรองเมื่อ "ป่วย" ไม่ใช่แค่ "ตาย"',
+  question: 'ระบบสลับเน็ตสำรองที่ดูแค่ ping จับอาการ "เน็ตป่วยแต่ไม่ตาย" (แพ็กเก็ตหาย, DNS พัง, ติด-ดับสลับ) ได้ไหม? และจะสลับอย่างไรไม่ให้สายโทรหลุดซ้ำๆ หรือหนีไปเส้นที่แย่กว่า?',
+  gap: 'ช่องว่างที่ยังไม่มีใครทำ: เราเตอร์บ้าน/SME และ multi-WAN ทั่วไปตัดสินจาก ping ไปที่อยู่เดียว (gateway หรือ 8.8.8.8) จึงไม่เห็น gray failure ที่ผู้ใช้เจอจริง · ยังไม่มีตัวเลือกทั่วไปที่ให้คะแนนจากบริการจริง (DNS, HTTPS) เทียบสองเส้นก่อนสลับ และมี hold-down กันสลับไปมา',
+  pitch: 'ใช้ได้จริงตอนนี้: ร้านค้า คลินิก และสาขาที่ใช้ POS/โทรผ่านเน็ต มักมีไฟเบอร์ + 4G แต่ระบบสลับไม่ทำงานในวันที่เน็ต "ช้าผิดปกติ" · ต่อยอด: ทำเป็นแพ็กเกจ OpenWrt (mwan3 hook) ที่ยิง DNS/HTTPS probe จริง, เก็บข้อมูล gray failure จากหลายสาขา, ประเมินด้วย tc netem จำลองอาการ',
+  init: Wan.init, actions: wanActs,
+  view: s => {
+    const sc = Wan.scores(s);
+    const row = (name, st) => `<tr><td>${name}</td><td>${st.on === 'fiber' ? 'ไฟเบอร์' : tag('warn-t', '4G')}</td><td class="${st.switches > 2 ? 'bad-t' : ''}">${st.switches}</td><td class="${st.bad ? 'bad-t' : ''}">${st.bad * 10} วิ</td><td>${st.lteTicks * 10} วิ</td></tr>`;
+    return `<table><tr><th>เส้น</th><th>อาการตอนนี้</th><th>คะแนน 8 รอบล่าสุด</th></tr><tr><td>ไฟเบอร์ (หลัก)</td><td>${Wan.COND[s.cond.fiber]}</td><td class="${sc.fiber < Wan.LOW ? 'bad-t' : 'ok'}">${sc.fiber}</td></tr><tr><td>4G (สำรอง)</td><td>${Wan.COND[s.cond.lte]}</td><td class="${sc.lte < Wan.LOW ? 'bad-t' : 'ok'}">${sc.lte}</td></tr></table>` +
+      `<p class="muted" style="margin-top:8px">เวลาที่ผ่านไป ${s.t * 10} วินาที · สลับเมื่อคะแนน &lt; ${Wan.LOW} และสำรองดีกว่าอย่างน้อย 10 · กลับเมื่อดีติดกัน ${Wan.HOLD} รอบ</p>` +
+      '<h3>เทียบสองระบบ</h3><table><tr><th>ระบบ</th><th>ใช้เส้น</th><th>สลับไปแล้ว (สายโทร/เซสชันหลุดทุกครั้ง)</th><th>ผู้ใช้เจอเน็ตแย่</th><th>อยู่บน 4G (เสียค่าเน็ต)</th></tr>' +
+      row('ธรรมดา (ping อย่างเดียว)', s.naive) + row('ที่เสนอ (คะแนน + hold-down)', s.smart) + '</table>' +
+      (s.events.length ? `<h3>เหตุการณ์สลับ</h3><ul class="plain">${s.events.slice(-6).map(e => `<li>${e}</li>`).join('')}</ul>` : '');
+  },
+  scenarios: [
+    { title: 'ล่มสนิท', desc: 'กรณีง่าย: ทั้งสองระบบสลับได้ ระบบที่เสนอเร็วกว่าหนึ่งจังหวะ', steps: ['f_down', 'tick5'] },
+    { title: 'แพ็กเก็ตหาย 25%', desc: 'ping หายไม่ติดกันถึง 3 ครั้ง ระบบธรรมดาจึงไม่เคยสลับ ทั้งที่วิดีโอคอลใช้ไม่ได้', steps: ['f_lossy', 'tick5', 'tick5'] },
+    { title: 'DNS พังแต่ ping ได้', desc: 'ISP มีปัญหา DNS — ping 1.1.1.1 ผ่านตลอด แต่ผู้ใช้เปิดเว็บไม่ได้เลย', steps: ['f_dns', 'tick5'] },
+    { title: 'ติด-ดับสลับ', desc: 'สายหลวมทำให้ดับ 30 วิ ติด 20 วิ — ระบบธรรมดาสลับไปมาจนสายโทรหลุดทุกนาที', steps: ['f_flap', 'tick5', 'tick5', 'tick5'] },
+    { title: 'สำรองก็พัง', desc: 'ซิม 4G หมดแพ็กเกจ (DNS ถูกพาไปหน้าเติมเงิน) แล้วไฟเบอร์มีปัญหา DNS — ไม่ควรหนีไปเส้นที่แย่กว่า แต่ต้องเรียกคน', steps: ['l_dns', 'tick5', 'f_dns', 'tick5'] },
+    { title: 'ฟื้นแล้วกลับเมื่อไร', desc: 'ไฟเบอร์ซ่อมเสร็จ ระบบธรรมดากลับทันที ระบบที่เสนอรอให้แน่ใจก่อน — แลกกับค่า 4G เพิ่ม', steps: ['f_down', 'tick5', 'f_healthy', 'tick5', 'tick5'] },
+  ],
+});
+
+// ---- 3 SRLG ----
+proj.push({
+  title: '3 · หา "สำรองปลอม" จากเส้นทางทางกายภาพ',
+  question: 'ซื้อเน็ตสองค่ายแล้วถือว่า "มีสำรอง" จริงไหม ถ้าสายทั้งสองค่ายวิ่งผ่านท่อเดียวกัน ใช้เราเตอร์ตัวเดียว หรือเสียบ UPS ตัวเดียว? ต้องพังกี่จุดพร้อมกันเน็ตจึงดับ?',
+  gap: 'ช่องว่างที่ยังไม่มีใครทำ: ระบบมอนิเตอร์ (Zabbix, PRTG, LibreNMS) เห็นแค่ลิงก์ทางตรรกะว่ามี 2 เส้น ไม่รู้ว่าทั้งสองเส้นใช้ท่อหรือเสาเดียวกัน · ยังไม่มีเครื่องมือทั่วไปที่รับแบบแปลนเส้นทางของ ISP + อาคาร + ไฟฟ้า แล้วคำนวณ minimum cut ให้ก่อนเซ็นสัญญา',
+  pitch: 'ใช้ได้จริงตอนนี้: งานนำสายลงดินและขุดถนนในเมืองตัดไฟเบอร์หลายค่ายพร้อมกันเป็นประจำ · ต่อยอด: นำเข้าไฟล์ KMZ เส้นทางจาก ISP, จับคู่เส้นทางที่อยู่ใกล้กันเกิน X เมตรด้วย PostGIS, แสดงบนแผนที่ และสร้างเป็นเช็กลิสต์จัดซื้อ "ขอทางเข้าตึกคนละฝั่ง"',
+  init: Srlg.init,
+  actions: {
+    cutDuct: { label: '🚜 รถขุดตัดท่อในซอย', run: s => Srlg.fail(s, 'duct', 'รถขุดของงานประปาตัดท่อใต้ดินในซอยหน้าตึก') },
+    failCoA: { label: '🏢 ชุมสาย ISP-A ล่ม', run: s => Srlg.fail(s, 'coA', 'ชุมสายของ ISP-A ไฟดับ') },
+    failUps: { label: '🔋 UPS ตัวที่ 1 เสีย', run: s => Srlg.fail(s, 'ups1', 'UPS ตัวที่ 1 แบตเสื่อม ดับตอนไฟกระพริบ') },
+    floodBridge: { label: '🌊 น้ำท่วมสะพาน', run: s => Srlg.fail(s, 'bridge', 'น้ำท่วมจนสายที่พาดใต้สะพานขาด') },
+    repair: { label: '🔧 ซ่อมทั้งหมด', run: Srlg.repair },
+    diverse: { label: '🧭 ให้ ISP-B เข้าตึกอีกฝั่ง', run: s => Srlg.change(s, { diverse: true }, 'ISP-B เดินสายใหม่ผ่านถนนด้านหลังและเข้าตึกด้านหลัง') },
+    router2: { label: '🖧 เพิ่มเราเตอร์สำรอง + UPS แยก', run: s => Srlg.change(s, { router2: true }, 'ISP-B ต่อเข้าเราเตอร์ตัวที่ 2 ที่ใช้ UPS อีกตัว (VRRP)') },
+    lte: { label: '📶 เพิ่ม 4G สำรอง', run: s => Srlg.change(s, { lte: true }, 'เพิ่ม 4G เสียบที่เราเตอร์หลัก') },
+  },
+  view: s => {
+    const ps = Srlg.paths(s), sp = Srlg.spof(s), mc = Srlg.minCuts(s);
+    const shared = r => ps.filter(p => p.risks.includes(r)).length > 1;
+    return `<p>สถานะอินเทอร์เน็ต: ${Srlg.up(s) ? tag('ok', 'ใช้ได้') : tag('bad-t', 'ดับ')} · บนกระดาษมี <b>${ps.length}</b> เส้นทาง · ต้องพังพร้อมกันอย่างน้อย <b class="${mc.size === 1 ? 'bad-t' : 'ok'}">${mc.size}</b> จุดจึงดับ</p>` +
+      '<table><tr><th>เส้นทาง</th><th>ผ่านอะไรบ้าง (ส้ม = ใช้ร่วมกับเส้นอื่น, แดง = พังอยู่)</th><th>สถานะ</th></tr>' +
+      ps.map(p => `<tr><td>${p.name}</td><td>${p.risks.map(r => tag(s.failed.includes(r) ? 'bad-t' : shared(r) ? 'warn-t' : '', Srlg.RISK[r])).join(' ')}</td><td>${Srlg.alive(s, p) ? tag('ok', 'ใช้ได้') : tag('bad-t', 'ขาด')}</td></tr>`).join('') + '</table>' +
+      `<h3>จุดตายเดียว (พังจุดเดียวเน็ตดับ)</h3><p>${sp.length ? sp.map(r => tag('bad-t', Srlg.RISK[r])).join(' ') : '<span class="ok">ไม่มี ✅</span>'}</p>` +
+      `<h3>ชุดที่เล็กที่สุดที่ทำให้ดับ (${mc.cuts.length} ชุด)</h3><ul class="plain">${mc.cuts.slice(0, 6).map(c => `<li>${c.map(r => Srlg.RISK[r]).join(' + ')}</li>`).join('')}${mc.cuts.length > 6 ? `<li class="muted">…และอีก ${mc.cuts.length - 6} ชุด</li>` : ''}</ul>`;
+  },
+  scenarios: [
+    { title: 'สองค่าย ท่อเดียว', desc: 'ทั้งสองค่ายใช้ท่อในซอยเดียวกัน — รถขุดครั้งเดียวดับหมด แล้วลองให้ ISP-B เข้าอีกฝั่ง', steps: ['cutDuct', 'repair', 'diverse', 'cutDuct'] },
+    { title: 'สำรองทำงานจริง', desc: 'ชุมสาย ISP-A ล่ม — เป็นความเสี่ยงที่ไม่ได้ใช้ร่วม ISP-B จึงรับงานต่อได้', steps: ['failCoA'] },
+    { title: 'แยกสายแล้วแต่ไฟดับ', desc: 'แยกทางเข้าตึกและเพิ่ม 4G แล้ว แต่ทุกอย่างยังเสียบเราเตอร์และ UPS ตัวเดียว', steps: ['diverse', 'lte', 'failUps', 'repair', 'router2', 'failUps'] },
+    { title: 'สองเหตุพร้อมกัน', desc: 'หน้าฝน: ขุดท่อหน้าตึก + น้ำท่วมสะพาน — สองเส้นไฟเบอร์ขาดพร้อมกัน 4G เป็นเส้นที่สาม', steps: ['diverse', 'router2', 'cutDuct', 'floodBridge', 'lte'] },
+  ],
+});
+
+// ---- 4 Rollout ----
+const roActs = {};
+for (const [k, p] of Object.entries(Rollout.PLANS)) roActs['plan_' + k] = { label: `📋 แผน: ${p.label}`, run: s => Rollout.setPlan(s, k) };
+Object.assign(roActs, {
+  push: { label: '▶ ส่งขั้นถัดไป', run: Rollout.push },
+  preflight: { label: '🧪 เปิดตัวตรวจล่วงหน้า', run: s => Rollout.toggle(s, 'preflight', 'ก่อนส่งแต่ละขั้น จำลองทั้งเครือข่ายว่ายังเข้าทุกเครื่องได้ไหม') },
+  cc: { label: '⏲ เปิด commit confirmed', run: s => Rollout.toggle(s, 'cc', 'ทุกเครื่องย้อนค่ากลับเองถ้าไม่ได้รับการยืนยันใน 10 นาที') },
+  typo: { label: '⌨ R2 จะพิมพ์ผิด', run: s => Rollout.toggle(s, 'typo', 'config ของ R2 มีคำสั่งพิมพ์ผิด จะถูกปฏิเสธ') },
+});
+proj.push({
+  title: '4 · ลำดับการแก้ config ที่ไม่ล็อกตัวเองออก',
+  question: 'เมื่อแก้ config ที่กระทบเส้นทางจัดการอุปกรณ์ (เช่นย้าย VLAN จัดการ) ทีละเครื่องจากระยะไกล ลำดับแบบไหนที่ไม่ "เลื่อยกิ่งที่ตัวเองนั่ง" จนต้องขับรถไปหน้างาน? และ commit confirmed ช่วยได้จริงแค่ไหน?',
+  gap: 'ช่องว่างที่ยังไม่มีใครทำ: Ansible/NAPALM/Nornir ส่ง config ทีละเครื่องตามรายการ และ commit confirmed ป้องกันได้แค่เครื่องที่กำลังแก้ · ยังไม่มีเครื่องมือทั่วไปที่จำลองการเข้าถึงทั้งเครือข่าย "ก่อนทุกขั้น" แล้วจัดลำดับหรือบล็อกขั้นที่จะตัดเครื่องอื่น',
+  pitch: 'ใช้ได้จริงตอนนี้: การล็อกตัวเองออกเป็นสาเหตุ outage ใหญ่ที่เจอบ่อย และสาขาต่างจังหวัดหนึ่งครั้งคือค่ารถ+เวลาทั้งวัน · ต่อยอด: ทำเป็นปลั๊กอิน Nornir ที่ดึง topology จาก LLDP, จำลองด้วย Batfish ก่อนแต่ละขั้น, ทดสอบบน Containerlab',
+  init: Rollout.init, actions: roActs,
+  view: s => {
+    const reach = Rollout.reachable(s.vlans), plan = Rollout.PLANS[s.plan];
+    const allDone = Rollout.ROUTERS.every(r => s.vlans[r].join() === '20' && reach.has(r));
+    return `<p class="muted">โครงสร้าง: NOC — R1 — R2 — R3 และ R1 — R4 · ตัวตรวจล่วงหน้า ${s.preflight ? 'เปิด' : 'ปิด'} · commit confirmed ${s.cc ? 'เปิด' : 'ปิด'}${s.typo ? ' · <span class="warn-t">R2 จะพิมพ์ผิด</span>' : ''}</p>` +
+      '<table><tr><th>เราเตอร์</th><th>VLAN จัดการ</th><th>NOC เข้าถึงได้</th><th>สถานะ</th></tr>' +
+      Rollout.ROUTERS.map(r => `<tr><td>${r}</td><td>${s.vlans[r].join(', ')}</td><td>${reach.has(r) ? tag('ok', 'ได้') : tag('bad-t', 'ไม่ได้ — ต้องไปหน้างาน')}</td><td>${s.vlans[r].join() === '20' ? 'ย้ายเสร็จ' : s.vlans[r].includes(20) ? 'มีทั้งสอง' : 'ยังเป็นของเดิม'}</td></tr>`).join('') + '</table>' +
+      `<h3>แผน: ${plan.label}</h3><ol class="plain">${plan.steps.map((st, i) => `<li class="${i < s.idx ? 'muted' : ''}">${i === s.idx ? '👉 ' : ''}${st.r} ${Rollout.OPS[st.op]}</li>`).join('')}</ol>` +
+      (allDone ? '<p class="ok" style="margin-top:8px">✅ ย้ายครบทุกเครื่องและยังเข้าถึงได้ทั้งหมด</p>' : '');
+  },
+  scenarios: [
+    { title: 'ใกล้ก่อน = เลื่อยกิ่งตัวเอง', desc: 'แก้ R1 ก่อน R1 ไม่ส่ง VLAN 10 ต่อแล้ว R2, R3, R4 หลุดทันที ขั้นที่เหลือส่งไม่ถึง', steps: ['push', 'push', 'push', 'push'] },
+    { title: 'commit confirmed ไม่พอ', desc: 'เปิด commit confirmed — R1 ยืนยันผ่านเพราะตัวมันเองยังเข้าได้ จึงไม่ย้อนกลับ ทั้งที่ตัดคนอื่นไปแล้ว', steps: ['cc', 'push', 'push'] },
+    { title: 'ไกลก่อน + พิมพ์ผิด', desc: 'ไกลก่อนดูฉลาด แต่ทุกขั้นคือการเดินในที่มืด — ถ้าขั้นกลางทางพลาด เครื่องปลายทางจะติดค้าง', steps: ['plan_far', 'typo', 'push', 'push', 'push', 'push'] },
+    { title: 'ตัวตรวจ + make-before-break', desc: 'ตัวตรวจล่วงหน้าบล็อกแผนเสี่ยง แล้วแผน "เพิ่มก่อนลบทีหลัง" ผ่านทุกขั้นโดยไม่มีเครื่องไหนหลุดเลย', steps: ['preflight', 'push', 'plan_mbb', 'push', 'push', 'push', 'push', 'push', 'push', 'push', 'push'] },
+  ],
+});
+
+// ---- 5 Rate limit ----
+const rlActs = {
+  where_CG: { label: '📱 ผู้โจมตีอยู่หลัง CGNAT', run: s => Rate.setWhere(s, 'CG') },
+  where_HOME: { label: '🏠 ผู้โจมตีใช้เน็ตบ้าน', run: s => Rate.setWhere(s, 'HOME') },
+};
+for (const [k, m] of Object.entries(Rate.MODES)) rlActs['mode_' + k] = { label: `🕵 ${m}`, run: s => Rate.setMode(s, k) };
+rlActs.tick = { label: '⏱ ผ่านไป 1 นาที', run: Rate.tick };
+proj.push({
+  title: '5 · จำกัดการเดารหัสผ่านโดยไม่แบนคนทั้งเครือข่ายมือถือ',
+  question: 'เมื่อผู้ใช้มือถือหลายร้อยคนออกเน็ตผ่าน IP เดียว (CGNAT) การแบนตาม IP จะลงโทษคนบริสุทธิ์แค่ไหน? และจะจำกัดผู้โจมตีที่ล้างคุกกี้หรือไล่ลองหลายบัญชีได้อย่างไรโดยไม่พึ่ง IP?',
+  gap: 'ช่องว่างที่ยังไม่มีใครทำ: fail2ban, nginx limit_req และ WAF ส่วนใหญ่ใช้ IP เป็นกุญแจ จึงแบนทั้ง CGNAT · ยังไม่มีตัวจำกัดอัตราทั่วไปที่ประเมิน "จำนวนคนจริงหลัง IP" จากประวัติแล้วปรับงบคุกกี้ใหม่ตามนั้น',
+  pitch: 'ใช้ได้จริงตอนนี้: เครือข่ายมือถือไทยใช้ CGNAT อย่างกว้างขวาง ผู้ใช้จำนวนมากจึงเจอ "IP ของคุณถูกบล็อก" โดยไม่ได้ทำอะไร · ต่อยอด: ทำเป็นโมดูล nginx/Envoy หรือ middleware, ทดสอบด้วยล็อกจริงที่ลบข้อมูลส่วนบุคคลแล้ว, วัด false positive เทียบ fail2ban',
+  init: Rate.init, actions: rlActs,
+  view: s => {
+    const r = s.tickRes;
+    const row = k => `<tr><td>${Rate.POLICIES[k]}</td><td class="${r && r[k].blocked ? 'bad-t' : ''}">${r ? r[k].blocked : '—'} <span class="muted">(รวม ${s.totals[k].blocked})</span></td><td>${r ? r[k].challenged : '—'} <span class="muted">(รวม ${s.totals[k].challenged})</span></td><td class="${r && r[k].passed > Rate.TOKEN_LIMIT ? 'bad-t' : ''}">${r ? r[k].passed : '—'} <span class="muted">(รวม ${s.totals[k].passed})</span></td></tr>`;
+    const banned = Object.entries(s.ban).filter(([, v]) => v > 0);
+    return `<p>นาทีที่ ${s.t} · ผู้โจมตีอยู่ที่ ${Rate.IPS[s.where]} · พฤติกรรม: <b>${Rate.MODES[s.mode]}</b></p>` +
+      `<p class="muted">ต่อนาที: ผู้ใช้เดิม ${Rate.ACTIVE} คำขอ + ผู้ใช้ใหม่ ${Rate.NEWCOMERS} คน จาก CGNAT · ผู้โจมตี ${s.mode === 'quiet' ? 0 : Rate.ATTACK} ครั้ง · เกณฑ์: ต่อ IP ${Rate.IP_LIMIT}/นาที แล้วแบน 3 นาที · ต่อคุกกี้ ${Rate.TOKEN_LIMIT}/นาที · ต่อบัญชีผิด ${Rate.ACCT_LIMIT}/นาที</p>` +
+      '<table><tr><th>นโยบาย</th><th>ผู้ใช้บริสุทธิ์ถูกบล็อก (นาทีนี้)</th><th>ผู้ใช้ถูกขอ CAPTCHA</th><th>ผู้โจมตีลองผ่าน</th></tr>' + ['ip', 'token', 'adaptive'].map(row).join('') + '</table>' +
+      `<p class="muted" style="margin-top:8px">IP ที่ถูกแบนตอนนี้ (นโยบายต่อ IP): ${banned.length ? banned.map(([ip, v]) => `${Rate.IPS[ip]} อีก ${v} นาที`).join(', ') : 'ไม่มี'}</p>`;
+  },
+  scenarios: [
+    { title: 'ผู้โจมตีใช้เน็ตบ้าน', desc: 'กรณีที่ทุกนโยบายออกแบบมาให้: IP เป็นของผู้โจมตีคนเดียว — ทุกแบบจำกัดได้ ไม่มีใครโดนลูกหลง', steps: ['where_HOME', 'tick'] },
+    { title: 'ผู้โจมตีอยู่หลัง CGNAT', desc: 'ผู้โจมตีใช้ IP เดียวกับผู้ใช้ 300 คน — แบน IP แล้วทุกคนเข้าไม่ได้ และยังโดนต่ออีกแม้ผู้โจมตีหยุดแล้ว', steps: ['tick', 'mode_quiet', 'tick'] },
+    { title: 'ล้างคุกกี้ทุกครั้ง', desc: 'นโยบายต่อคุกกี้ไม่แบนใครผิด แต่ผู้โจมตีแค่ล้างคุกกี้ก็ลองได้ทั้ง 80 ครั้ง', steps: ['mode_rotate', 'tick'] },
+    { title: 'ไล่ลองหลายบัญชี', desc: 'credential stuffing: ใช้คุกกี้ใหม่และบัญชีใหม่ทุกครั้ง เกณฑ์ต่อบัญชีไม่ทำงาน — เหลือแค่งบคุกกี้ใหม่ต่อ IP ที่จับได้', steps: ['mode_stuff', 'tick', 'tick'] },
+  ],
+});
+
+// ---- rendering ----
+const ui = { p: 0, tab: 'free', s: null, step: 0, log: [] };
+const $ = id => document.getElementById(id);
+function reset() { ui.s = proj[ui.p].init(); ui.step = 0; ui.log = []; }
+function render() {
+  const pr = proj[ui.p];
+  $('projects').innerHTML = proj.map((x, i) => `<button class="${i === ui.p ? 'on' : ''}" data-proj="${i}">${x.title}</button>`).join('');
+  const scen = ui.tab === 'free' ? null : pr.scenarios[ui.tab];
+  let h = `<h2>${pr.title}</h2><p class="question"><b>คำถาม:</b> ${pr.question}</p><p class="gap">${pr.gap}</p><p class="pitch">${pr.pitch}</p>`;
+  h += '<div class="tabs"><button class="' + (scen ? '' : 'on') + '" data-tab="free">เล่นอิสระ</button>' + pr.scenarios.map((x, i) => `<button class="${ui.tab === i ? 'on' : ''}" data-tab="${i}">สถานการณ์: ${x.title}</button>`).join('') + '</div>';
+  if (scen) h += `<p style="margin-top:12px">${scen.desc}</p>`;
+  h += '<h3>สถานะปัจจุบัน</h3><div class="panel">' + pr.view(ui.s) + '</div>';
+  h += `<div class="happened ${ui.s.last.bad ? 'bad' : ''}"><b>เพิ่งเกิดอะไรขึ้น:</b> ${ui.s.last.text}</div>`;
+  if (scen) {
+    h += '<h3>กดตามลำดับ</h3><ol class="steps">' + scen.steps.map((k, i) => `<li class="${i < ui.step ? 'done' : ''}"><span class="n">${i + 1}.</span><button data-step="${i}" class="${i === ui.step ? 'next' : ''}" ${i === ui.step ? '' : 'disabled'}>${pr.actions[k].label}</button></li>`).join('') + '</ol>';
+    if (ui.step >= scen.steps.length) h += '<p class="muted" style="margin-top:8px">จบสถานการณ์แล้ว — กด "เริ่มใหม่" เพื่อลองอีกครั้ง</p>';
+  } else {
+    h += '<h3>ปุ่มเล่นอิสระ</h3><div class="row">' + Object.entries(pr.actions).map(([k, a]) => `<button data-act="${k}">${a.label}</button>`).join('') + '</div>';
+  }
+  h += '<div class="row" style="margin-top:14px"><button data-reset="1">↺ เริ่มใหม่</button></div>';
+  if (ui.log.length) h += '<h3>ประวัติ</h3><ul class="log">' + ui.log.slice(-8).reverse().map(x => `<li>${x}</li>`).join('') + '</ul>';
+  $('project').innerHTML = h;
+}
+function apply(key) { ui.s = proj[ui.p].actions[key].run(ui.s); ui.log.push(ui.s.last.text); }
+document.addEventListener('click', e => {
+  const t = e.target.closest('button'); if (!t || t.disabled) return;
+  const d = t.dataset;
+  if (d.proj != null) { ui.p = Number(d.proj); ui.tab = 'free'; reset(); }
+  else if (d.tab != null) { ui.tab = d.tab === 'free' ? 'free' : Number(d.tab); reset(); }
+  else if (d.reset) reset();
+  else if (d.act) apply(d.act);
+  else if (d.step != null) { apply(proj[ui.p].scenarios[ui.tab].steps[Number(d.step)]); ui.step++; }
+  render();
+});
+reset(); render();
+</script>
+</body>
+</html>
