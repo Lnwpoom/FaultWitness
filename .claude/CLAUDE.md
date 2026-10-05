@@ -22,7 +22,7 @@ A change is done when typecheck, lint and the test suite all pass (run the match
 
 ### Issue tracker
 
-Issues are tracked in GitHub Issues for `Lnwpoom/cloud_Developer`. See `docs/agents/issue-tracker.md`.
+Issues are tracked in GitHub Issues for `Lnwpoom/cloud_Developer2`. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

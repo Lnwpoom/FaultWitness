@@ -1,0 +1,3 @@
+# The Collector stamps Result times, not the Probe
+
+Every Result's `started_at` and `finished_at` come from the Collector's clock, taken when it sends a Probe its tests and when the answer arrives; a Probe reports only `duration_ms`, measured on its monotonic clock. Probe clocks are not trusted because a skewed clock is itself one of the Faults we must diagnose (`clockA` sets Probe A to 2019): if Probe A stamped its own Results they would look seven years old, be treated as Stale, and the Diagnosis would say "Probe A lost contact" instead of "Probe A fails HTTPS while B passes". Real networks have unsynchronised clocks too, so this holds outside the Lab.
