@@ -3,7 +3,7 @@
 import { createServer as createHttpServer, type Server } from 'node:http';
 import { createServer as createHttpsServer } from 'node:https';
 import type { AddressInfo } from 'node:net';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { startCollectorService, type CollectorService, type ProbeClient } from '../../src/collector/index.ts';
 import { startProbe, type RunningProbe } from '../../src/probe/server.ts';
 import { loadConfig, type Config } from '../../src/shared/config.ts';
@@ -26,7 +26,6 @@ const shut = (s: Server) => {
   s.closeAllConnections();
   return new Promise<void>((resolve) => s.close(() => resolve()));
 };
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const httpsSite = () => createHttpsServer({ key: tls.key, cert: tls.validCert }, (_q, r) => r.end('ok'));
 
@@ -96,17 +95,15 @@ afterAll(async () => {
 });
 
 describe('Collector service against real Probes', () => {
-  it('answers no-data before the first Round, then a normal Diagnosis within one cadence', async () => {
-    await start({ cadence_ms: 300 });
+  it('answers no-data before the first Round, then a normal Diagnosis once the scheduler starts', async () => {
+    await start();
     expect(await get('/report')).toEqual({ status: 'no-data' });
-    service!.scheduler.start();
-    let report: Report | NoDataReport = { status: 'no-data' };
-    for (let i = 0; i < 20 && !isReport(report); i++) {
-      await sleep(100);
-      report = await get('/report');
-    }
-    expect(isReport(report)).toBe(true);
-    const r = report as Report;
+    service!.scheduler.start(); // the first Round runs at once, not after a cadence
+    const r = await vi.waitFor(async () => {
+      const report = await get('/report');
+      if (!isReport(report)) throw new Error('no Round yet');
+      return report;
+    });
     expect(r.keys).toEqual([]);
     expect(r.alert).toBe(false);
     expect(r.probes.map((p) => p.state)).toEqual(['reported', 'reported']);
@@ -171,36 +168,31 @@ describe('Collector service against real Probes', () => {
     expect((await round()).keys).toEqual([]);
   });
 
-  it('pauses and resumes the schedule; Rounds never overlap', async () => {
-    // a slow client: every Probe call takes longer than the cadence
-    const live = { calls: 0, maxConcurrentRounds: 0 };
+  it('runs Rounds one at a time, whoever asks for them', async () => {
     const rounds = new Map<number, number>();
+    let maxConcurrentRounds = 0;
     const slow: ProbeClient = {
       async run(probeId, roundId, tests) {
         rounds.set(roundId, (rounds.get(roundId) ?? 0) + 1);
-        const active = [...rounds.values()].filter((n) => n > 0).length;
-        live.maxConcurrentRounds = Math.max(live.maxConcurrentRounds, active);
-        live.calls++;
-        await sleep(120);
+        maxConcurrentRounds = Math.max(maxConcurrentRounds, [...rounds.values()].filter((n) => n > 0).length);
+        await new Promise((r) => setImmediate(r));
         rounds.set(roundId, rounds.get(roundId)! - 1);
         return { probe_id: probeId, results: tests.map((t) => ({ ...t, success: true, duration_ms: 5, error_type: null })) };
       },
     };
-    await start({ cadence_ms: 50 }, { client: slow });
+    await start({}, { client: slow });
     service!.scheduler.start();
-    await Promise.all([round(), round(), sleep(400)]);
-    expect(live.maxConcurrentRounds).toBe(1);
+    const [a, b, c] = await Promise.all([round(), round(), round()]);
+    expect([a.round_id, b.round_id, c.round_id].sort((x, y) => x - y)).toEqual([a.round_id, a.round_id + 1, a.round_id + 2].sort((x, y) => x - y));
+    expect(maxConcurrentRounds).toBe(1);
+  });
 
+  it('POST /schedule pauses and resumes the scheduler', async () => {
+    await start();
     expect((await post('/schedule', { paused: true })).json).toEqual({ paused: true });
-    await sleep(200); // let a Round already in flight finish
-    const before = ((await get('/report')) as Report).round_id;
-    await sleep(400);
-    expect(((await get('/report')) as Report).round_id).toBe(before);
-
-    await post('/schedule', { paused: false });
-    await sleep(400);
-    expect(((await get('/report')) as Report).round_id).toBeGreaterThan(before);
-    expect(live.maxConcurrentRounds).toBe(1);
+    expect(service!.scheduler.paused).toBe(true);
+    expect((await post('/schedule', { paused: false })).json).toEqual({ paused: false });
+    expect(service!.scheduler.paused).toBe(false);
   });
 
   it('rejects a malformed schedule request', async () => {

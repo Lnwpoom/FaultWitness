@@ -2,6 +2,7 @@
 // Collector. Rounds from the scheduler and from `POST /rounds` run one at a time.
 import { readFile } from 'node:fs/promises';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { readBody, sendJson } from '../shared/http.ts';
 import type { AddressInfo } from 'node:net';
 import type { Config } from '../shared/config.ts';
 import type { NoDataReport, Report } from '../shared/types.ts';
@@ -37,26 +38,7 @@ export interface CollectorService {
 
 const DASHBOARD = new URL('../dashboard/index.html', import.meta.url);
 const NO_DATA: NoDataReport = { status: 'no-data' };
-const MAX_BODY = 64 * 1024;
-
-function send(res: ServerResponse, status: number, body: unknown): void {
-  const text = JSON.stringify(body);
-  res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' });
-  res.end(text);
-}
-
-function readBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    let text = '';
-    req.setEncoding('utf8');
-    req.on('data', (chunk: string) => {
-      text += chunk;
-      if (text.length > MAX_BODY) reject(new Error('body too large'));
-    });
-    req.on('end', () => resolve(text));
-    req.on('error', reject);
-  });
-}
+const MAX_BODY_BYTES = 64 * 1024;
 
 export async function startCollectorService(opts: CollectorServiceOptions): Promise<CollectorService> {
   const { config, clock = systemClock, host = '0.0.0.0', log = () => {} } = opts;
@@ -97,34 +79,34 @@ export async function startCollectorService(opts: CollectorServiceOptions): Prom
         return;
       }
       case 'GET /report':
-        return send(res, 200, collector.report() ?? NO_DATA);
+        return sendJson(res, 200, collector.report() ?? NO_DATA);
       case 'POST /rounds':
-        return send(res, 200, (await runRound()) ?? NO_DATA);
+        return sendJson(res, 200, (await runRound()) ?? NO_DATA);
       case 'POST /schedule': {
         let paused: unknown;
         try {
-          paused = (JSON.parse(await readBody(req)) as { paused?: unknown }).paused;
+          paused = (JSON.parse(await readBody(req, MAX_BODY_BYTES)) as { paused?: unknown }).paused;
         } catch {
-          return send(res, 400, { error: 'body must be JSON like {"paused": true}' });
+          return sendJson(res, 400, { error: 'body must be JSON like {"paused": true}' });
         }
-        if (typeof paused !== 'boolean') return send(res, 400, { error: '"paused" must be true or false' });
+        if (typeof paused !== 'boolean') return sendJson(res, 400, { error: '"paused" must be true or false' });
         scheduler.setPaused(paused);
         log(paused ? 'schedule paused' : 'schedule resumed');
-        return send(res, 200, { paused });
+        return sendJson(res, 200, { paused });
       }
       case 'POST /reset':
         await chain; // never reset under a Round that is still writing
         collector.reset();
         log('results reset');
-        return send(res, 200, { reset: true });
+        return sendJson(res, 200, { reset: true });
       default:
-        return send(res, 404, { error: `no route ${route}` });
+        return sendJson(res, 404, { error: `no route ${route}` });
     }
   }
 
   const server = createServer((req, res) => {
     handle(req, res).catch((e: unknown) => {
-      if (!res.headersSent) send(res, 500, { error: (e as Error).message });
+      if (!res.headersSent) sendJson(res, 500, { error: (e as Error).message });
       else res.destroy();
     });
   });

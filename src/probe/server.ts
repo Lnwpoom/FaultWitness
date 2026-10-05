@@ -1,9 +1,10 @@
 // The Probe's HTTP server: `POST /run` runs the Collector's tests, `GET /health` names the Probe.
 // Only Targets and tests from the Probe's own config are accepted (400 otherwise), so the Probe
 // cannot be used to reach arbitrary hosts.
-import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
+import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { Config } from '../shared/config.ts';
+import { BodyTooLargeError, readBody, sendJson } from '../shared/http.ts';
 import {
   TARGET_IDS,
   TEST_KINDS,
@@ -39,24 +40,6 @@ const MAX_TESTS = 64;
 
 class BadRequest extends Error {}
 
-function readBody(req: IncomingMessage): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    let size = 0;
-    req.on('data', (chunk: Buffer) => {
-      size += chunk.length;
-      if (size > MAX_BODY_BYTES) {
-        reject(new BadRequest('body too large'));
-        req.destroy();
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
-    req.on('error', reject);
-  });
-}
-
 function isTestRequest(v: unknown): v is TestRequest {
   if (typeof v !== 'object' || v === null) return false;
   const { target, test } = v as Record<string, unknown>;
@@ -83,12 +66,6 @@ function parseRunRequest(text: string, config: Config): RunRequest {
   return { round_id, tests: tests.map(({ target, test }: TestRequest) => ({ target, test })) };
 }
 
-function send(res: ServerResponse, status: number, body: unknown): void {
-  const text = JSON.stringify(body);
-  res.writeHead(status, { 'content-type': 'application/json', 'content-length': Buffer.byteLength(text) });
-  res.end(text);
-}
-
 export async function startProbe({
   config,
   probeId,
@@ -102,22 +79,22 @@ export async function startProbe({
   const server = createServer((req, res) => {
     const path = new URL(req.url ?? '/', 'http://probe').pathname;
     if (req.method === 'GET' && path === '/health') {
-      send(res, 200, { probe_id: probeId } satisfies HealthResponse);
+      sendJson(res, 200, { probe_id: probeId } satisfies HealthResponse);
       return;
     }
     if (req.method === 'POST' && path === '/run') {
-      readBody(req)
+      readBody(req, MAX_BODY_BYTES)
         .then((text) => runTests(parseRunRequest(text, config).tests))
         .then(
-          (results) => send(res, 200, { probe_id: probeId, results } satisfies RunResponse),
+          (results) => sendJson(res, 200, { probe_id: probeId, results } satisfies RunResponse),
           (err: unknown) => {
-            if (err instanceof BadRequest) send(res, 400, { error: err.message });
-            else send(res, 500, { error: 'internal error' });
+            if (err instanceof BadRequest || err instanceof BodyTooLargeError) sendJson(res, 400, { error: err.message });
+            else sendJson(res, 500, { error: 'internal error' });
           },
         );
       return;
     }
-    send(res, 404, { error: 'not found' });
+    sendJson(res, 404, { error: 'not found' });
   });
 
   await new Promise<void>((resolve, reject) => {

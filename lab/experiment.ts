@@ -43,13 +43,16 @@ function unavailable(id: string): string | null {
   return null;
 }
 
-let stopping = false;
+/** Whether the run has been interrupted (Ctrl-C); checked while waiting for Rounds. */
+interface RunState {
+  stopping: boolean;
+}
 
 /** Waits for the next Round after `afterRound` and returns its report. */
-async function nextRound(afterRound: number, timeoutMs: number): Promise<Report> {
+async function nextRound(afterRound: number, timeoutMs: number, run: RunState): Promise<Report> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    if (stopping) throw new Error('interrupted');
+    if (run.stopping) throw new Error('interrupted');
     const r = await getReport().catch(() => null);
     if (r && isReport(r) && r.round_id > afterRound) return r;
     await sleep(200);
@@ -57,7 +60,7 @@ async function nextRound(afterRound: number, timeoutMs: number): Promise<Report>
   throw new Error(`no new Round within ${timeoutMs / 1000} s; is the Lab up (npm run lab -- up)?`);
 }
 
-async function runScenario(plan: ScenarioPlan, cadenceMs: number, jsonl: string): Promise<ScenarioRun> {
+async function runScenario(plan: ScenarioPlan, cadenceMs: number, jsonl: string, run: RunState): Promise<ScenarioRun> {
   const reason = unavailable(plan.id);
   if (reason) return { plan, notRun: reason, appliedAt: null, rounds: [] };
 
@@ -73,27 +76,22 @@ async function runScenario(plan: ScenarioPlan, cadenceMs: number, jsonl: string)
 
   let appliedAt: number | null = null;
   let clearedAt: number | null = null;
-  const fault = plan.id === 'normal' ? null : (plan.id as FaultName);
-  if (fault) {
+  if (isFaultName(plan.id)) {
     for (let i = 0; i < WARMUP_ROUNDS; i++) {
-      const r = await nextRound(last, wait);
+      const r = await nextRound(last, wait, run);
       last = r.round_id;
       record(r, 'warmup');
     }
     // straight after a Round, so the next Round is the first to run entirely under the Fault
     appliedAt = Date.now();
-    if (fault === 'blipA') {
-      // blipA returns once it has cleared itself after one Round
-      await applyFault(fault);
-      clearedAt = Date.now();
-    } else {
-      await applyFault(fault);
-    }
+    await applyFault(plan.id);
+    // blipA returns only once it has cleared itself after the Round that saw it
+    if (plan.id === 'blipA') clearedAt = Date.now();
   }
 
   const rounds: ObservedRound[] = [];
   while (rounds.length < OBSERVED_ROUNDS) {
-    const r = await nextRound(last, wait);
+    const r = await nextRound(last, wait, run);
     last = r.round_id;
     record(r, 'observe');
     const started = Math.min(...r.results.map((x) => x.started_at));
@@ -111,14 +109,14 @@ async function runScenario(plan: ScenarioPlan, cadenceMs: number, jsonl: string)
   return { plan, appliedAt, rounds };
 }
 
-function parseArgs(args: string[]): { main: boolean; extended: boolean; only: string | null } | string {
+function parseArgs(args: string[]): { main: boolean; extended: boolean; only: 'normal' | FaultName | null } | string {
   if (args.includes('--main')) return { main: true, extended: false, only: null };
   if (args.includes('--extended')) return { main: false, extended: true, only: null };
   const i = args.indexOf('--scenario');
   if (i >= 0) {
     const id = args[i + 1] ?? '';
-    if (id !== 'normal' && !isFaultName(id)) return `unknown Scenario ${JSON.stringify(id)}`;
-    return { main: false, extended: false, only: id };
+    if (id === 'normal' || isFaultName(id)) return { main: false, extended: false, only: id };
+    return `unknown Scenario ${JSON.stringify(id)}`;
   }
   if (args.length) return `unknown option ${args[0]}`;
   return { main: true, extended: true, only: null };
@@ -139,9 +137,10 @@ export async function experiment(args: string[]): Promise<number> {
   const jsonl = join(outDir, `experiment-${stamp}.jsonl`);
   writeFileSync(jsonl, '');
 
+  const state: RunState = { stopping: false };
   const onSignal = () => {
-    if (stopping) return;
-    stopping = true;
+    if (state.stopping) return;
+    state.stopping = true;
     console.error('\nหยุดการทดลอง — กำลังคืนค่าห้องแล็บ…');
   };
   process.on('SIGINT', onSignal);
@@ -152,21 +151,21 @@ export async function experiment(args: string[]): Promise<number> {
   let code = 0;
   try {
     await setPaused(false);
-    const run = async (plan: ScenarioPlan, into: ScenarioRun[]) => {
+    const runOne = async (plan: ScenarioPlan, into: ScenarioRun[]) => {
       console.log(`สถานการณ์: ${plan.name} (${plan.id})`);
-      const result = await runScenario(plan, cadenceMs, jsonl);
+      const result = await runScenario(plan, cadenceMs, jsonl, state);
       if (result.notRun) console.log(`  ไม่ได้รัน: ${result.notRun}`);
       into.push(result);
     };
     if (opts.only) {
       const inMain = MAIN.find((s) => s.id === opts.only);
-      await run(planOf(opts.only as 'normal' | FaultName, inMain?.name), inMain ? main : extended);
+      await runOne(planOf(opts.only, inMain?.name), inMain ? main : extended);
     }
-    if (opts.main) for (const s of MAIN) await run(planOf(s.id, s.name), main);
-    if (opts.extended) for (const id of EXTENDED) await run(planOf(id), extended);
+    if (opts.main) for (const s of MAIN) await runOne(planOf(s.id, s.name), main);
+    if (opts.extended) for (const id of EXTENDED) await runOne(planOf(id), extended);
   } catch (e) {
     console.error(`experiment: ${(e as Error).message}`);
-    code = stopping ? 130 : 1;
+    code = state.stopping ? 130 : 1;
   } finally {
     // always leave the Lab normal and the scheduler running
     await clearAll().catch((e: unknown) => console.error(`clear failed: ${(e as Error).message}`));
