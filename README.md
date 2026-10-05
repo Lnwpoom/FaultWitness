@@ -40,7 +40,7 @@ npm run typecheck && npm run lint && npm test
    Writes `results/experiment-<timestamp>.md` (the tables) and `.jsonl` (every Result). Ctrl-C stops it and leaves the Lab normal.
 5. `npm run lab -- down` removes everything.
 
-**`slowA` needs netem.** The "A is slow but works" Fault delays Probe A's packets with `tc qdisc … netem`, which needs the kernel's `sch_netem` module. Docker Desktop and most Linux laptops have it; the cloud sandbox where the committed results were measured does not, so there `slowA` is reported as *not run*. Run `npm run lab -- experiment --scenario slowA` on the presentation laptop to fill that row.
+**`slowA` needs netem.** The "A is slow but works" Fault delays Probe A's packets with `tc qdisc … netem`, which needs the kernel's `sch_netem` module. Docker Desktop and most Linux laptops have it; the cloud sandbox where the committed results were measured does not, so there `slowA` is reported as *not run*. It was measured separately on a laptop with Docker Desktop: [`results/experiment-2026-10-05T13-32-34.md`](results/experiment-2026-10-05T13-32-34.md).
 
 See [`lab/README.md`](lab/README.md) for the Lab's topology and troubleshooting.
 
