@@ -1,14 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { createSimLab } from '../support/sim-lab.ts';
+import { createSimLab, observeFaults } from '../support/sim-lab.ts';
 import { expectedKeys, type FaultName } from '../support/simulated-probes.ts';
-
-/** The runBench protocol: two normal Rounds, then the Fault, then observe. */
-async function withFault(faults: FaultName[], observe: number) {
-  const lab = createSimLab();
-  await lab.rounds(2);
-  for (const f of faults) lab.faults.add(f);
-  return { lab, reports: await lab.rounds(observe) };
-}
 
 describe('Collector Diagnosis with simulated Probes', () => {
   it('reports normal with no alert when no Fault is active', async () => {
@@ -36,28 +28,28 @@ describe('Collector Diagnosis with simulated Probes', () => {
   ])('Fault %s', (fault, keys) => {
     it(`is diagnosed as ${keys.join(' + ')} with an alert from the second Round`, async () => {
       expect(expectedKeys([fault])).toEqual(keys);
-      const { reports } = await withFault([fault], 3);
+      const { reports } = await observeFaults([fault], 3);
       expect(reports.map((r) => r.keys)).toEqual([keys, keys, keys]);
       expect(reports.map((r) => r.alert)).toEqual([false, true, true]);
     });
   });
 
   it('diagnoses an expired certificate on Site X as that site answering with a bad certificate', async () => {
-    const { reports } = await withFault(['certX'], 1);
+    const { reports } = await observeFaults(['certX'], 1);
     const [finding] = reports[0]?.findings ?? [];
     expect(finding?.title).toBe('เว็บไซต์ X ตอบกลับ แต่ใบรับรองไม่ผ่าน');
     expect(finding?.supporting).toContain('TCP ไป เว็บไซต์ X สำเร็จและแปลงชื่อได้ — เซิร์ฟเวอร์ตอบ แต่ใบรับรอง HTTPS ไม่ผ่าน: เน็ตไม่ได้เสีย');
   });
 
   it('diagnoses a skewed clock on A as A failing HTTPS while B passes', async () => {
-    const { reports } = await withFault(['clockA'], 1);
+    const { reports } = await observeFaults(['clockA'], 1);
     const [finding] = reports[0]?.findings ?? [];
     expect(finding?.title).toBe('A ผ่าน HTTPS ไม่ได้ ขณะที่ B ผ่านได้');
     expect(finding?.next_steps).toContain('ตรวจนาฬิกาของเครื่อง A และโปรแกรมที่ดักใบรับรอง (proxy/แอนตี้ไวรัส)');
   });
 
   it('reports a slow but working Probe A as an Observation, not a Finding', async () => {
-    const { reports } = await withFault(['slowA'], 3);
+    const { reports } = await observeFaults(['slowA'], 3);
     expect(expectedKeys(['slowA'])).toEqual([]);
     for (const r of reports) {
       expect(r.keys).toEqual([]);
@@ -76,7 +68,7 @@ describe('Collector Diagnosis with simulated Probes', () => {
   });
 
   it('keeps a one-Round blip on A at the initial level without an alert, then returns to normal', async () => {
-    const { reports } = await withFault(['blipA'], 3);
+    const { reports } = await observeFaults(['blipA'], 3);
     const [blip, after, later] = reports;
     expect(blip?.keys).toEqual(['probe|A']);
     expect(blip?.findings.map((f) => f.evidence_level)).toEqual(['initial']);

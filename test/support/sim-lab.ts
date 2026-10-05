@@ -61,3 +61,15 @@ export function createSimLab(opts: { client?: ProbeClient; staleAfterMs?: number
   };
   return { clock, faults: sim.faults, store, collector, jsonlPath, round, rounds };
 }
+
+/** The runBench protocol: two normal Rounds, then the Faults, then `observe` Rounds. */
+export async function observeFaults(
+  faults: readonly FaultName[],
+  observe: number,
+  opts: Parameters<typeof createSimLab>[0] = {},
+): Promise<{ lab: SimLab; reports: Report[] }> {
+  const lab = createSimLab(opts);
+  await lab.rounds(2);
+  for (const f of faults) lab.faults.add(f);
+  return { lab, reports: await lab.rounds(observe) };
+}

@@ -22,6 +22,8 @@ export interface Collector {
   runRound(): Promise<Report | null>;
   /** The report for the stored Results as of now, or null when there are none. */
   report(): Report | null;
+  /** Forgets every stored Result (the JSONL keeps them, after a reset marker). Round ids keep counting. */
+  reset(): void;
 }
 
 export function createCollector({ client, store, clock, staleAfterMs = DEFAULT_STALE_AFTER_MS }: CollectorOptions): Collector {
@@ -69,5 +71,5 @@ export function createCollector({ client, store, clock, staleAfterMs = DEFAULT_S
     return report();
   }
 
-  return { runRound, report };
+  return { runRound, report, reset: () => store.reset() };
 }
