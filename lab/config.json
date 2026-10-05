@@ -5,7 +5,7 @@
     "B": { "url": "http://10.77.1.12:7100" }
   },
   "targets": {
-    "local-service": { "url": "http://intranet.lab:8081/" },
+    "local-service": { "url": "http://10.77.1.20:8081/" },
     "site-x": { "url": "https://site-x.lab/", "ip": "10.77.2.10", "port": 443 },
     "site-y": { "url": "https://site-y.lab/", "ip": "10.77.2.11", "port": 443 }
   },

@@ -57,10 +57,30 @@ services:
     networks:
       outer: { ipv4_address: 10.77.2.11 }
 
+  collector:
+    <<: *lab
+    command: collector
+    environment:
+      FAULTWITNESS_CONFIG: /app/lab/config.json
+    ports: ["8080:8080"]   # the only port published to the host: dashboard and API
+    volumes: ["../data/lab:/data"]   # results.jsonl, the Collector's append-only history
+    depends_on:   # the first Round should find both Probes listening
+      probe-a: { condition: service_healthy }
+      probe-b: { condition: service_healthy }
+    networks:
+      inner: { ipv4_address: 10.77.1.10 }
+
   probe-a:
     <<: *lab
     command: probe
     cap_add: [NET_ADMIN]
+    healthcheck: &probe-health
+      test: ["CMD", "curl", "-sf", "http://localhost:7100/health"]
+      interval: 2s
+      timeout: 2s
+      retries: 10
+      start_period: 5s
+      start_interval: 300ms
     environment:
       <<: *via-gateway
       PROBE_ID: A
@@ -72,6 +92,7 @@ services:
     <<: *lab
     command: probe
     cap_add: [NET_ADMIN]
+    healthcheck: *probe-health
     environment:
       <<: *via-gateway
       PROBE_ID: B
