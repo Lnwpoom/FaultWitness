@@ -1,0 +1,13 @@
+#!/bin/sh
+# use-cert valid|expired [--no-reload]: choose which certificate this site's nginx serves.
+set -eu
+case "${1:-}" in
+  valid) crt="/lab/certs/$SITE.crt" ;;
+  expired) crt="/lab/certs/$SITE-expired.crt" ;;
+  *) echo "usage: use-cert valid|expired [--no-reload]" >&2; exit 2 ;;
+esac
+[ -f "$crt" ] || { echo "use-cert: $SITE has no $1 certificate" >&2; exit 1; }
+mkdir -p /lab/active
+cp "$crt" /lab/active/cert.pem
+cp "/lab/certs/$SITE.key" /lab/active/key.pem
+if [ "${2:-}" != --no-reload ]; then nginx -c /lab/etc/nginx-site.conf -s reload; fi

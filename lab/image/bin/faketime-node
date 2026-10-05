@@ -1,0 +1,10 @@
+#!/bin/sh
+# Run Node under libfaketime. The clock offset is read from /run/faketime/rc on every call
+# (no caching), so writing '@2019-01-01 00:00:00' or '+0' there flips it at runtime.
+# Monotonic time stays real, so duration_ms is unaffected.
+set -eu
+lib=$(ls /usr/lib/*/faketime/libfaketime.so.1 | head -n1)
+mkdir -p /run/faketime
+[ -f /run/faketime/rc ] || echo '+0' > /run/faketime/rc
+LD_PRELOAD="$lib" FAKETIME_TIMESTAMP_FILE=/run/faketime/rc FAKETIME_NO_CACHE=1 FAKETIME_DONT_FAKE_MONOTONIC=1 \
+  exec node "$@"

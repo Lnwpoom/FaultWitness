@@ -4,3 +4,4 @@ results/*.jsonl.tmp
 data/
 lab/certs/
 *.log
+.claude/worktrees/
