@@ -33,6 +33,7 @@ Test external behaviour at the agreed seams only. Assert on Diagnosis output, HT
 1. **Collector in-process** (`test/collector/`): drive `runRound()` and the Collector's HTTP API with a simulated ProbeClient that ports the prototype's `Lab.measure` world model (`test/support/`). The prototype's `Lab.EXPECT` table and `runBench` protocol are the oracle.
 2. **Probe `POST /run`** (`test/probe/`): start the Probe server and real loopback servers (valid and expired TLS, HTTP 500, closed port, silent socket, unresolvable name) inside the test.
 3. **Lab experiment** (`lab experiment`): the acceptance test in Docker. Not part of `npm test`; run it before calling the build done.
+   `test/lab/` covers the runner itself without Docker: `experiment()` takes an `ExperimentEnv` with a fake Lab and Collector, and the tests assert on its exit code and the files it writes to `results/`.
 
 Rules:
 - Write tests first (`tdd` skill) and keep each one about a behaviour a user or operator would notice.
