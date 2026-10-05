@@ -1,0 +1,6 @@
+node_modules/
+dist/
+results/*.jsonl.tmp
+data/
+lab/certs/
+*.log
