@@ -32,6 +32,8 @@ services:
   resolver:
     <<: *lab
     command: resolver
+    cap_add: [NET_ADMIN]
+    environment: { ROUTE_TO: 10.77.2.0/24, ROUTE_VIA: 10.77.1.254 }
     networks:
       inner: { ipv4_address: 10.77.1.53 }
 

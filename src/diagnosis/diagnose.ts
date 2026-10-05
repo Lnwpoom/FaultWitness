@@ -283,7 +283,9 @@ function explain(f: RuleFinding, ctx: ExplainContext, streak: number): Explanati
         const y = c[q][t];
         evidence.push(
           x.state === 'svc'
-            ? `${p} ต่อ TCP ไป ${TN[t]} ได้ แต่ HTTPS ไม่ผ่าน (${errOf(x.http)})`
+            ? x.http?.error_type === 'tls_cert'
+              ? `${p} ต่อ TCP ไป ${TN[t]} ได้ แต่ HTTPS ไม่ผ่าน (${errOf(x.http)})`
+              : `${p} ต่อ TCP ไป ${TN[t]} ได้ แต่เซิร์ฟเวอร์ตอบผิดปกติ (${errOf(x.http)})`
             : `${p} เข้า ${TN[t]} ไม่ได้ ${seen} (${errOf(x.tcp && !x.tcp.success ? x.tcp : x.http)})`,
         );
         evidence.push(
@@ -294,9 +296,12 @@ function explain(f: RuleFinding, ctx: ExplainContext, streak: number): Explanati
       }
       const local = f.targets.includes('local-service');
       const svc = f.targets.some((t) => c[p][t].state === 'svc');
+      // as for `dest`: the prototype's wording assumes a certificate failure; `http_status` gets its own
+      const cert = f.targets.some((t) => c[p][t].state === 'svc' && c[p][t].http?.error_type === 'tls_cert');
       const next: string[] = [];
       if (local) next.push(`ตรวจ IP, gateway และไฟร์วอลล์บนเครื่อง ${p}`, `ย้าย ${p} ไปเชื่อมต่อจุดเดียวกับ ${q} แล้วตรวจซ้ำ`);
-      if (svc) next.push(`ตรวจนาฬิกาของเครื่อง ${p} และโปรแกรมที่ดักใบรับรอง (proxy/แอนตี้ไวรัส)`);
+      if (cert) next.push(`ตรวจนาฬิกาของเครื่อง ${p} และโปรแกรมที่ดักใบรับรอง (proxy/แอนตี้ไวรัส)`);
+      else if (svc) next.push(`ตรวจว่า ${p} ผ่าน proxy หรือตัวกรองเว็บที่ ${q} ไม่ได้ผ่านหรือไม่`);
       if (f.targets.some((t) => t !== 'local-service' && c[p][t].state === 'down')) {
         next.push(`ตรวจเส้นทางขาออกของ ${p} (gateway/route ที่ได้รับ)`);
       }
@@ -304,8 +309,10 @@ function explain(f: RuleFinding, ctx: ExplainContext, streak: number): Explanati
         title:
           local && f.targets.length === 1
             ? `${p} เข้าบริการภายในไม่ได้ แต่ ${q} เข้าได้`
-            : svc
+            : cert
               ? `${p} ผ่าน HTTPS ไม่ได้ ขณะที่ ${q} ผ่านได้`
+              : svc
+                ? `${p} ได้คำตอบผิดปกติ ขณะที่ ${q} ได้คำตอบปกติ`
               : `ปัญหาเฉพาะที่ Probe ${p} หรือเส้นทางจาก ${p}`,
         evidence,
         missing: [`ยังแยกไม่ได้ว่าเป็นตัวเครื่อง ${p} สาย/สัญญาณ หรือเส้นทางในเครือข่าย — จึงยังไม่สรุปว่า Wi-Fi เสีย`, ...firstTime],
@@ -379,6 +386,22 @@ function explain(f: RuleFinding, ctx: ExplainContext, streak: number): Explanati
       };
     }
   }
+}
+
+function staleFinding(roundId: number, ageMs: number, staleAfterMs: number): Finding {
+  const limit = Math.round(staleAfterMs / 1000);
+  return {
+    key: 'insufficient',
+    code: 'insufficient',
+    status: STATUS.insufficient,
+    title: `ไม่มีผลใหม่เกิน ${limit} วินาที — ไม่นำผลรอบ ${roundId} มาใช้เป็นสถานะปัจจุบัน`,
+    evidence: [`ผลล่าสุด (รอบ ${roundId}) จบเมื่อ ${Math.round(ageMs / 1000)} วินาทีก่อน เกินเกณฑ์ข้อมูลเก่า ${limit} วินาที`],
+    missing: ['ไม่มีผลตรวจปัจจุบันจาก Probe ใดเลย จึงไม่รู้ว่าตอนนี้เครือข่ายเป็นอย่างไร'],
+    next: ['ตรวจว่าเครื่องหลักยังเริ่มรอบตรวจอยู่ (ตัวตั้งเวลาไม่ได้ถูกหยุดไว้)', 'ตรวจว่าเครื่องหลักเข้าถึงพอร์ตของ Probe A และ B ได้'],
+    streak: 1,
+    level: 'initial',
+    levelLabel: LEVEL.initial,
+  };
 }
 
 // "one machine is slow" is an observation, never a fault verdict on its own
@@ -459,7 +482,10 @@ export function diagnose(results: readonly Result[], now: number, opts: Diagnose
       ...explain(f, ctx, streak),
     };
   });
-  const keys = [...new Set(findings.map((f) => f.key))].sort();
+  // Stale: never present the old Round as the current state. A leading Insufficient Data Finding
+  // says what is missing; the old Round's Findings follow it for reference only.
+  if (stale) findings.unshift(staleFinding(latest.id, now - finishedAt, staleAfterMs));
+  const keys = stale ? ['insufficient'] : [...new Set(findings.map((f) => f.key))].sort();
   const overall = stale
     ? STATUS.insufficient
     : findings.length

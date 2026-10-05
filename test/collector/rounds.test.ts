@@ -52,6 +52,18 @@ describe('Stale and silent Probes', () => {
     ]);
   });
 
+  it('when Stale, scores as Insufficient Data and says what is missing, keeping the old Findings for reference', async () => {
+    const { lab } = await observeFaults(['dnsA'], 2);
+    lab.clock.advance(30_000);
+    const report = lab.collector.report();
+    expect(report?.keys).toEqual(['insufficient']);
+    const [stale, ...old] = report?.findings ?? [];
+    expect(stale).toMatchObject({ key: 'insufficient', code: 'insufficient', status: 'ข้อมูลยังไม่พอ' });
+    expect(stale?.title).toBe(`ไม่มีผลใหม่เกิน 25 วินาที — ไม่นำผลรอบ ${report?.round_id} มาใช้เป็นสถานะปัจจุบัน`);
+    expect(stale?.missing).toContain('ไม่มีผลตรวจปัจจุบันจาก Probe ใดเลย จึงไม่รู้ว่าตอนนี้เครือข่ายเป็นอย่างไร');
+    expect(old.map((f) => f.key)).toEqual(['dns|A']);
+  });
+
   it('takes the Stale limit from the Collector options', async () => {
     const { lab } = await observeFaults([], 1, { staleAfterMs: 60_000 });
     lab.clock.advance(30_000);
@@ -254,5 +266,27 @@ describe('server answered with a bad HTTP status', () => {
     expect(finding?.title).toBe('เว็บไซต์ X ตอบกลับ แต่คำตอบผิดปกติ');
     expect(finding?.supporting[0]).toBe('ทุกจุดเข้า เว็บไซต์ X ไม่ได้ ในรอบนี้ (ครั้งแรก) (ตอบสถานะผิดปกติ)');
     expect(finding?.supporting.join(' ')).not.toContain('ใบรับรอง');
+  });
+
+  it('on one Probe only, is a Probe-local Finding without the clock or certificate advice', async () => {
+    const sim = createSimulatedProbes();
+    const client: ProbeClient = {
+      run: async (probeId, roundId, tests) => {
+        const answer = await sim.run(probeId, roundId, tests);
+        if (!answer || probeId !== 'A') return answer;
+        return {
+          ...answer,
+          results: answer.results.map((r) =>
+            r.target === 'site-x' && r.test === 'http' ? { ...r, success: false, error_type: 'http_status' as const } : r,
+          ),
+        };
+      },
+    };
+    const report = await createSimLab({ client }).round();
+    expect(report.keys).toEqual(['probe|A']);
+    const finding = report.findings[0];
+    expect(finding?.title).toBe('A ได้คำตอบผิดปกติ ขณะที่ B ได้คำตอบปกติ');
+    expect(finding?.supporting[0]).toBe('A ต่อ TCP ไป เว็บไซต์ X ได้ แต่เซิร์ฟเวอร์ตอบผิดปกติ (ตอบสถานะผิดปกติ)');
+    expect([...(finding?.supporting ?? []), ...(finding?.next_steps ?? [])].join(' ')).not.toMatch(/ใบรับรอง|นาฬิกา|HTTPS ไม่ผ่าน/);
   });
 });

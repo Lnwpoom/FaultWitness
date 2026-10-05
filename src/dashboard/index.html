@@ -187,8 +187,9 @@ function renderReport(r) {
   } else if (!r.findings.length) {
     left += '<p class="muted">ไม่มีข้อสรุปในรอบล่าสุด</p>';
   }
-  for (const f of r.findings) {
-    left += `<article class="finding ${r.stale ? 'dim' : ''}">
+  // when Stale, the first Finding says so; the rest are the old Round's, shown for reference only
+  r.findings.forEach((f, i) => {
+    left += `<article class="finding ${r.stale && i > 0 ? 'dim' : ''}">
       <div class="head"><span class="tag st">${esc(f.status)}</span><span class="tag lv-${esc(f.evidence_level)}">หลักฐาน: ${esc(f.evidence_level_label)} · พบ ${esc(f.rounds_seen)} รอบ</span></div>
       <div class="title">${esc(f.title)}</div>
       <div class="cols">
@@ -197,7 +198,7 @@ function renderReport(r) {
         <div><h3>ตรวจต่อที่แนะนำ</h3>${list(f.next_steps)}</div>
       </div>
     </article>`;
-  }
+  });
   for (const o of r.observations) {
     left += `<div class="obs ${r.stale ? 'dim' : ''}"><b>ข้อสังเกต (ไม่ใช่ข้อสรุป):</b> ${esc(o.text)}${o.next_steps.length ? `<br><span class="muted">ตรวจต่อ: ${o.next_steps.map(esc).join(' · ')}</span>` : ''}</div>`;
   }

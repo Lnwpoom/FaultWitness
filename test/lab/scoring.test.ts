@@ -81,6 +81,16 @@ describe('summarize', () => {
     expect(row.levels).toBe('เบื้องต้น → ยืนยันจากหลายจุด → ยืนยันจากหลายจุด → ยืนยันจากหลายจุด → ยืนยันจากหลายจุด');
   });
 
+  it('counts detection at the first alert, even when that Round is scored wrong', () => {
+    const row = summarize({
+      plan: dnsA,
+      appliedAt: T0,
+      rounds: [round(['dns|A', 'probe|A'], { ...on, alert: true, at: T0 + 21_000 }), round(['dns|A'], { ...on, alert: true, at: T0 + 31_000 })],
+    });
+    expect(row.detection).toEqual({ seconds: 21, round: 1 });
+    expect(row).toMatchObject({ correct: 1, wrong: 1 });
+  });
+
   it('says so when a Fault never raised the alert', () => {
     const row = summarize({ plan: dnsA, appliedAt: T0, rounds: [round(['dns|A'], on)] });
     expect(row.detection).toBeNull();

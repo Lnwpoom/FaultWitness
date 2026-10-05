@@ -196,7 +196,10 @@ export const FAULTS: Record<FaultName, Fault> = {
     expected: ['probe|A'],
     apply: async () => writeClock('@2019-01-01 00:00:00'),
     clear: async () => writeClock('+0'),
-    isActive: () => exec('probe-a', ['cat', '/run/faketime/rc']).stdout.trim() !== '+0',
+    isActive: () => {
+      const r = exec('probe-a', ['cat', '/run/faketime/rc']);
+      return r.ok && r.stdout.trim() !== '+0';
+    },
   },
   slowA: {
     name: 'slowA',

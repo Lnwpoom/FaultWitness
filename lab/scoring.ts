@@ -63,7 +63,7 @@ export interface ScenarioRow {
   wrong: number;
   insufficient: number;
   falseAlarms: number;
-  /** seconds from applying the Fault to the first correct report with an alert, and that Round's number (1-based) */
+  /** seconds from applying the Fault to the first report with an alert, and that Round's number (1-based) */
   detection: { seconds: number; round: number } | null;
   detectionText: string;
   avgTests: number;
@@ -97,7 +97,8 @@ export function summarize(run: ScenarioRun): ScenarioRow {
   }
   const scores = rounds.map(scoreRound);
   const count = (v: Verdict) => scores.filter((s) => s.verdict === v).length;
-  const detectAt = plan.expectAlert ? scores.findIndex((s, i) => s.verdict === 'correct' && rounds[i]!.report.alert) : -1;
+  // spec: wall-clock time from applying the Fault to the first report with an alert
+  const detectAt = plan.expectAlert ? rounds.findIndex((r) => r.faultActive && r.report.alert) : -1;
   const detection =
     detectAt >= 0 && run.appliedAt !== null
       ? { seconds: Math.round((rounds[detectAt]!.report.finished_at - run.appliedAt) / 1000), round: detectAt + 1 }
@@ -195,7 +196,7 @@ export function renderMarkdown(doc: ExperimentDoc): string {
     '',
     'วิธีทดลอง (เหมือน runBench ของต้นแบบ): ล้างผลใน Collector → ถ้ามีเหตุ ให้ดูรอบปกติ 2 รอบแล้วสร้างเหตุทันทีหลังรอบที่ 2 จบ → ดูผล 5 รอบ → คืนค่า ' +
       'แต่ละรอบเทียบคีย์ของผลวิเคราะห์กับคำตอบที่คาดหวัง: ตรงกันทุกคีย์ = ถูก, มี "ข้อมูลไม่พอ" = ข้อมูลไม่พอ, อื่น ๆ = ผิด; แจ้งเตือนขณะไม่มีเหตุ = แจ้งเตือนผิด. ' +
-      'เวลาตรวจพบวัดจากนาฬิกาจริง ตั้งแต่สร้างเหตุถึงรายงานแรกที่ถูกต้องและแจ้งเตือน',
+      'เวลาตรวจพบวัดจากนาฬิกาจริง ตั้งแต่สร้างเหตุถึงรายงานแรกที่แจ้งเตือน (คอลัมน์ ถูก/ผิด บอกว่าข้อสรุปตรงหรือไม่)',
     '',
     table('ตารางหลัก (5 สถานการณ์ × 5 รอบ)', doc.main),
     '',

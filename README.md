@@ -48,6 +48,17 @@ See [`lab/README.md`](lab/README.md) for the Lab's topology and troubleshooting.
 
 Everything (Probe and Collector addresses, Targets, fixed IPs, cadence, Stale limit, timeouts) is in one JSON config; [`config/local.json`](config/local.json) is an example.
 
+To try it on one machine with [`config/local.json`](config/local.json): it expects an Internal Service on `127.0.0.1:7200` and uses two public HTTPS sites (`one.one.one.one` at 1.1.1.1 and `dns.google` at 8.8.8.8) as External Sites, so it needs internet access. Start a stand-in Internal Service, then both Probes and the Collector, each in its own terminal:
+
+```
+node -e "require('node:http').createServer((q, r) => r.end('ok')).listen(7200, '127.0.0.1')"
+PROBE_ID=A npm run probe
+PROBE_ID=B npm run probe
+npm run collector               # dashboard on http://localhost:8080/
+```
+
+On real machines, put each Probe's and the Collector's address in the config and run:
+
 ```
 PROBE_ID=A npm run probe        # on Probe A's machine
 PROBE_ID=B npm run probe        # on Probe B's machine
