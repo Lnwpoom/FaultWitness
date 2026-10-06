@@ -7,6 +7,12 @@
       "skillPath": "skills/engineering/ask-matt/SKILL.md",
       "computedHash": "16554b785353aabf3880228755d317a3193a8359772f25ecb5f2a1f762d6e12d"
     },
+    "beautiful-article": {
+      "source": "conardli/garden-skills",
+      "sourceType": "github",
+      "skillPath": "skills/beautiful-article/SKILL.md",
+      "computedHash": "fe10753d840d0db3a35ede9673f104e2934ea9b0c926a095a64d17acf82dc481"
+    },
     "claude-handoff": {
       "source": "mattpocock/skills",
       "sourceType": "github",
@@ -42,6 +48,12 @@
       "sourceType": "github",
       "skillPath": "skills/misc/git-guardrails-claude-code/SKILL.md",
       "computedHash": "ccf581d304132095c2787b0a3bcb7b4ff125863c9f796fb16311d8f1cacef470"
+    },
+    "gpt-image-2": {
+      "source": "conardli/garden-skills",
+      "sourceType": "github",
+      "skillPath": "skills/gpt-image-2/SKILL.md",
+      "computedHash": "ed104c6ec2b34ffcf1ac4005c3fb5466624eccc0cb60bc88170046aa36d2e4b1"
     },
     "grill-me": {
       "source": "mattpocock/skills",
@@ -84,6 +96,12 @@
       "sourceType": "github",
       "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
       "computedHash": "ac2c94885f34ff8492dc12aa4543182f661f32ea1722b8d6b6c2c7045af33ae3"
+    },
+    "kb-retriever": {
+      "source": "conardli/garden-skills",
+      "sourceType": "github",
+      "skillPath": "skills/kb-retriever/SKILL.md",
+      "computedHash": "ac3bc385630155203fe0c6d83204ad6128f8db73599265847ab9d204d9840a21"
     },
     "loop-me": {
       "source": "mattpocock/skills",
@@ -192,6 +210,18 @@
       "sourceType": "github",
       "skillPath": "skills/engineering/wayfinder/SKILL.md",
       "computedHash": "fa790eb4255b13d24d7e33ff4891ccd3d621558cc0ab87ae226777538ea16a8f"
+    },
+    "web-design-engineer": {
+      "source": "conardli/garden-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-design-engineer/SKILL.md",
+      "computedHash": "82e5bd4aec3752c4dd8d22939c46d24f2fa4b03e24088420dabcd4ada0ef6884"
+    },
+    "web-video-presentation": {
+      "source": "conardli/garden-skills",
+      "sourceType": "github",
+      "skillPath": "skills/web-video-presentation/SKILL.md",
+      "computedHash": "c8c5077774ff6795fa8400cd2b271cc1cd1eebb2d636b19d2e45f22b9cabfd2f"
     },
     "wizard": {
       "source": "mattpocock/skills",
