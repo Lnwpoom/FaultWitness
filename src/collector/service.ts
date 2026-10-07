@@ -69,6 +69,20 @@ export async function startCollectorService(opts: CollectorServiceOptions): Prom
     const path = new URL(req.url ?? '/', 'http://collector').pathname;
     const route = `${req.method} ${path}`;
     switch (route) {
+      case 'GET /assets/IBMPlexSansThai-Regular.ttf':
+      case 'GET /assets/IBMPlexSansThai-SemiBold.ttf':
+      case 'GET /assets/BlockCraft.otf':
+      case 'GET /assets/OFL.txt': {
+        // An exact allowlist, never a general filesystem route.
+        const asset = await readFile(new URL(`../dashboard${path}`, import.meta.url));
+        res.writeHead(200, {
+          'content-type': path.endsWith('.ttf') ? 'font/ttf' : path.endsWith('.otf') ? 'font/otf' : 'text/plain; charset=utf-8',
+          'cache-control': 'public, max-age=86400',
+          'x-content-type-options': 'nosniff',
+        });
+        res.end(asset);
+        return;
+      }
       case 'GET /':
       case 'GET /index.html': {
         const html = await readFile(opts.dashboardPath ?? DASHBOARD, 'utf8').catch(

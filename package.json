@@ -8,7 +8,7 @@
     "node": ">=22"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node --input-type=module -e \"import { cp } from 'node:fs/promises'; await cp('src/dashboard', 'dist/dashboard', { recursive: true });\"",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",

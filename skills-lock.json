@@ -97,12 +97,6 @@
       "skillPath": "skills/engineering/improve-codebase-architecture/SKILL.md",
       "computedHash": "ac2c94885f34ff8492dc12aa4543182f661f32ea1722b8d6b6c2c7045af33ae3"
     },
-    "kb-retriever": {
-      "source": "conardli/garden-skills",
-      "sourceType": "github",
-      "skillPath": "skills/kb-retriever/SKILL.md",
-      "computedHash": "ac3bc385630155203fe0c6d83204ad6128f8db73599265847ab9d204d9840a21"
-    },
     "loop-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",

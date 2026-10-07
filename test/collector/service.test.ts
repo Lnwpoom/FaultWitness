@@ -225,4 +225,20 @@ describe('Collector service against real Probes', () => {
     expect(page.headers.get('content-type')).toMatch(/text\/html/);
     expect((await fetch(`${service!.url}/nope`)).status).toBe(404);
   });
+
+  it('serves the Thai fonts and their license locally so the dashboard works offline', async () => {
+    await start();
+    for (const weight of ['Regular', 'SemiBold']) {
+      const response = await fetch(`${service!.url}/assets/IBMPlexSansThai-${weight}.ttf`);
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toBe('font/ttf');
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      // The TrueType sfnt signature; a fallback HTML/error response is not a font.
+      expect([...bytes.slice(0, 4)]).toEqual([0, 1, 0, 0]);
+    }
+    const license = await fetch(`${service!.url}/assets/OFL.txt`);
+    expect(license.status).toBe(200);
+    expect(await license.text()).toContain('SIL OPEN FONT LICENSE');
+    expect((await fetch(`${service!.url}/assets/config.json`)).status).toBe(404);
+  });
 });
