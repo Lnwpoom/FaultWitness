@@ -1,304 +1,219 @@
 <!doctype html>
-<html lang="th">
+<html lang="th" data-theme="dark" data-size="standard">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="color-scheme" content="light dark">
-<title>FaultWitness — แดชบอร์ด</title>
-<!--
-  The Collector serves this page at GET /. One static file, no build step and no external
-  requests: it polls GET /report every 2 s and renders the JSON report (src/shared/types.ts,
-  `Report` / `NoDataReport`). Rendering follows the prototype's renderDash
-  (prototypes/network-projects/PROTOTYPE-faultwitness.html); so do the colour tokens.
--->
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FaultWitness · Evidence Desk</title>
+<!-- Local font license: assets/OFL.txt (IBM Plex Sans Thai). -->
 <style>
-  :root { --bg:#fafaf9; --fg:#1c1917; --muted:#78716c; --line:#e7e5e4; --card:#fff; --accent:#0f766e; --accent-soft:#e6f4f1; --warn:#b45309; --warn-soft:#fffbeb; --bad:#b91c1c; --bad-soft:#fef2f2; --ok:#15803d; --ok-soft:#ecfdf3; }
-  @media (prefers-color-scheme: dark) { :root { --bg:#1c1917; --fg:#f5f5f4; --muted:#a8a29e; --line:#3a3532; --card:#262220; --accent:#5eead4; --accent-soft:#163532; --warn:#fbbf24; --warn-soft:#3a2f12; --bad:#f87171; --bad-soft:#3b1a1a; --ok:#4ade80; --ok-soft:#14301f; } }
-  * { box-sizing:border-box; }
-  html { font-size:15px; }
-  @media (min-width:1280px) { html { font-size:17px; } }
-  @media (min-width:1700px) { html { font-size:19px; } }
-  body { margin:0; background:var(--bg); color:var(--fg); font:1rem/1.6 system-ui, -apple-system, "Segoe UI", "Noto Sans Thai", "Leelawadee UI", "Tahoma", sans-serif; }
-  main { max-width:1680px; margin:0 auto; padding:20px 16px 60px; }
-  h1 { font-size:1.45rem; margin:0; line-height:1.3; }
-  h2 { font-size:1.1rem; margin:0 0 10px; }
-  h3 { font-size:.8rem; letter-spacing:.04em; color:var(--muted); margin:14px 0 4px; font-weight:600; }
-  p { margin:0 0 8px; }
-  ul { margin:0; padding-left:1.2em; }
-  li + li { margin-top:2px; }
-  .muted { color:var(--muted); } .small { font-size:.86rem; }
-  .v-ok { color:var(--ok); } .v-bad { color:var(--bad); } .v-warn { color:var(--warn); }
-
-  header { display:flex; flex-wrap:wrap; gap:12px 20px; align-items:center; justify-content:space-between; margin-bottom:14px; }
-  header .sub { color:var(--muted); font-size:.9rem; }
-  .actions { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
-  button { font:inherit; cursor:pointer; border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:8px; padding:6px 14px; }
-  button:hover:not(:disabled) { border-color:var(--accent); }
-  button:disabled { opacity:.55; cursor:progress; }
-  button.primary { border-color:var(--accent); background:var(--accent); color:var(--bg); font-weight:700; padding:8px 20px; font-size:1.05rem; }
-  .live { font-size:.82rem; color:var(--muted); }
-  .live::before { content:""; display:inline-block; width:.55em; height:.55em; border-radius:50%; background:var(--ok); margin-right:6px; vertical-align:middle; }
-  .live.off::before { background:var(--bad); }
-
-  .notice { border:1px solid var(--line); border-left-width:4px; border-radius:6px; padding:8px 12px; margin:0 0 14px; font-size:.92rem; }
-  .notice.bad { border-color:var(--bad); background:var(--bad-soft); color:var(--bad); }
-  .notice.warn { border-color:var(--warn); background:var(--warn-soft); color:var(--warn); }
-  .notice[hidden] { display:none; }
-
-  .panel { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:16px; margin-bottom:16px; overflow-x:auto; }
-
-  .hero { border-left:8px solid var(--ok); }
-  .hero.bad { border-left-color:var(--bad); }
-  .hero.warn { border-left-color:var(--warn); }
-  .hero-top { display:flex; flex-wrap:wrap; gap:10px 20px; align-items:center; justify-content:space-between; }
-  .hero .label { font-size:.85rem; color:var(--muted); }
-  .big { font-size:2.2rem; font-weight:800; line-height:1.25; }
-  .big.ok { color:var(--ok); } .big.bad { color:var(--bad); } .big.warn { color:var(--warn); }
-  .alert { display:inline-block; padding:4px 16px; border-radius:999px; font-size:1.05rem; font-weight:600; border:2px solid var(--line); color:var(--muted); white-space:nowrap; }
-  .alert.on { background:var(--bad); color:#fff; border-color:var(--bad); }
-  .alert.watch { color:var(--warn); border-color:var(--warn); }
-  .alert.stale { color:var(--warn); border-color:var(--warn); background:var(--warn-soft); }
-  .meta { display:flex; flex-wrap:wrap; gap:8px 26px; margin-top:12px; font-size:.95rem; }
-  .meta b { font-variant-numeric:tabular-nums; }
-  .stale-banner { margin-top:12px; padding:10px 14px; border-radius:6px; background:var(--warn-soft); color:var(--warn); border:2px solid var(--warn); font-weight:600; }
-
-  .grid { display:grid; grid-template-columns:1fr; gap:0 16px; align-items:start; }
-  @media (min-width:1200px) { .grid { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); } }
-
-  .finding { border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-top:10px; }
-  .finding:first-of-type { margin-top:0; }
-  .finding .head { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-bottom:6px; }
-  .finding .title { font-weight:700; font-size:1.08rem; }
-  .cols { display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:4px 16px; }
-  .tag { display:inline-block; padding:1px 10px; border-radius:999px; font-size:.82rem; border:1px solid var(--line); }
-  .tag.st { background:var(--accent-soft); border-color:transparent; }
-  .tag.lv-initial { color:var(--muted); } .tag.lv-repeated { color:var(--warn); border-color:var(--warn); } .tag.lv-confirmed { color:var(--ok); border-color:var(--ok); }
-  .allgood { padding:10px 14px; border-radius:6px; background:var(--ok-soft); color:var(--fg); border-left:4px solid var(--ok); }
-  .obs { margin-top:10px; padding:8px 12px; border-left:3px solid var(--warn); background:var(--warn-soft); border-radius:4px; font-size:.95rem; }
-  .dim { opacity:.5; }
-
-  table { border-collapse:collapse; width:100%; font-size:.92rem; }
-  th, td { text-align:left; padding:5px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
-  th { color:var(--muted); font-weight:500; }
-  td.okc { color:var(--ok); } td.badc { color:var(--bad); font-weight:600; } td.skip { color:var(--muted); }
-  .probe-h { color:var(--fg); font-weight:700; }
-  .nw, td.okc, td.skip { white-space:nowrap; }
-  .num { font-variant-numeric:tabular-nums; }
-  table.raw { font-size:.8rem; font-family:ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace; }
-  details summary { cursor:pointer; color:var(--muted); }
-
-  .empty { text-align:center; padding:48px 16px; }
-  .empty .big { color:var(--muted); }
+@font-face{font-family:"IBM Plex Sans Thai";font-weight:400;font-display:swap;src:url("assets/IBMPlexSansThai-Regular.ttf") format("truetype")}
+@font-face{font-family:"IBM Plex Sans Thai";font-weight:600;font-display:swap;src:url("assets/IBMPlexSansThai-SemiBold.ttf") format("truetype")}
+@font-face{font-family:"Block Craft";font-weight:500;font-display:swap;src:url("assets/BlockCraft.otf") format("opentype")}
+:root{color-scheme:dark;--bg:#1c1917;--surface:#262220;--raised:#302b28;--ink:#f5f5f4;--muted:#bcb7b2;--line:#49423d;--accent:#5eead4;--tint:#203a34;--pass:#4ade80;--fail:#fca5a5;--warn:#fcd34d;--text:16px;--row:38px}
+:root[data-theme=light]{color-scheme:light;--bg:#fafaf9;--surface:#fff;--raised:#f1efec;--ink:#1c1917;--muted:#68605a;--line:#ded9d3;--accent:#0f766e;--tint:#e3f3ee;--pass:#15803d;--fail:#b91c1c;--warn:#92400e}
+:root[data-size=present]{--text:22px;--row:52px}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:var(--text)/1.5 "IBM Plex Sans Thai",sans-serif}button,select{font:inherit;color:inherit}button{cursor:pointer}button,select{border:1px solid var(--line);border-radius:8px;background:var(--surface)}button:hover:not(:disabled){background:var(--raised)}button:disabled{opacity:.4;cursor:default}button:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:3px}button{min-height:44px;padding:6px 12px}svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}[hidden]{display:none!important}h1,h2,h3,p{margin:0}h2{font-size:1.1em}h3{font-size:1em}small,.small{font-size:13px;color:var(--muted)}.muted{color:var(--muted)}.accent{color:var(--accent)}.num{font-variant-numeric:tabular-nums}.craft{font-family:"Block Craft","IBM Plex Sans Thai",sans-serif;font-weight:500}.app{height:100dvh;padding:16px;display:grid;grid-template-columns:80px minmax(0,1fr);grid-template-rows:76px minmax(0,1fr) 52px;gap:0 24px}.rail{grid-row:1/-1;background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:20px 8px;display:flex;flex-direction:column;align-items:center;gap:12px}.rail-mark{width:40px;height:40px;color:var(--accent);border-bottom:1px solid var(--line);display:grid;place-items:center;margin-bottom:24px}.nav{border:0;background:transparent;width:62px;height:74px;padding:8px 2px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:5px;font-size:11px;border-radius:12px}.nav svg{width:23px;height:23px}.nav[aria-current=page]{background:var(--tint);color:var(--accent)}.rail-foot{margin-top:auto;writing-mode:vertical-rl;font-size:10px;letter-spacing:2px;color:var(--muted)}.masthead{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid var(--line);gap:20px}.wordmark{font-size:29px;line-height:1.25;letter-spacing:.3px}.breadcrumb{display:flex;align-items:center;gap:12px;margin-top:4px}.badge{font-size:10px;letter-spacing:1px;padding:2px 7px;border:1px solid var(--line);border-radius:4px;color:var(--muted)}.header-tools{display:flex;align-items:center;gap:12px;padding-top:2px}.header-tools label{font-size:12px;color:var(--muted)}select{padding:8px;max-width:260px;font-size:14px;min-height:42px}.primary{background:var(--accent);color:var(--bg);border:0;font-size:15px}.main{min-height:0;padding-top:16px}.view{height:100%;min-height:0}.overview{display:grid;grid-template-rows:auto minmax(0,1fr);gap:16px}.verdict{display:flex;justify-content:space-between;align-items:center;gap:24px;padding:2px 0 16px;border-bottom:1px solid var(--line)}.verdict h1{font-size:clamp(24px,2.3vw,38px);line-height:1.35;max-width:950px}.status-line{font-size:13px;margin-bottom:4px;color:var(--accent)}.verdict-meta{min-width:160px;text-align:right;font-size:14px}.verdict-meta b{display:block;color:var(--accent);margin-bottom:4px}.workspace{min-height:0;display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:24px}.panel{min-width:0;min-height:0;display:flex;flex-direction:column}.matrix{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 20px 8px}.panel-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:8px}.matrix-space{flex:1;min-height:0}.matrix table{border-collapse:collapse;width:100%;table-layout:fixed}.matrix th,.matrix td{text-align:left;padding:7px 10px;line-height:1.35;border-bottom:1px solid var(--line);font-weight:400}.matrix th:first-child{padding-left:0;width:36%}.matrix thead th{font-size:13px;padding-top:0;padding-bottom:9px;vertical-align:bottom}.probe{display:flex;align-items:center;gap:8px}.probe .craft{font-size:32px;color:var(--accent);line-height:1.2}.probe-caption{font-size:11px;color:var(--muted);display:block}.target th{font-size:.85em;padding-top:9px;padding-bottom:5px;background:var(--surface);color:var(--muted)}.target .num{margin-right:8px;font-size:11px;color:var(--accent)}.matrix td{font-size:.9em}.pass{color:var(--pass)}.fail{color:var(--fail)}.skip{color:var(--muted)}.latency{display:inline-block;font-size:12px;color:var(--muted);margin-left:7px}.error-detail{font-size:.7em;display:block}.matrix-foot{padding-top:8px;font-size:11px;color:var(--muted)}.panel-note{display:flex;align-items:center;min-height:32px;flex-shrink:0;font-size:11px;color:var(--muted)}.reasoning{padding:0 4px}.reason-space{flex:1;min-height:0}.reason-block{padding:12px 0;border-top:1px solid var(--line)}.reason-block:first-child{padding-top:0;border-top:0}.reason-block h3{margin-bottom:5px}.reason-block p{color:var(--muted);line-height:1.55;white-space:pre-wrap}.reason-block.next{border-top:2px solid var(--accent)}.reason-block.next h3{color:var(--accent)}.raw-view{display:flex;flex-direction:column}.raw-heading{display:flex;justify-content:space-between;align-items:flex-end;padding:4px 0 18px}.raw-heading h1{font-size:28px}.raw-panel{flex:1;min-height:0;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 16px 0;display:flex;flex-direction:column}.raw-space{flex:1;min-height:0}.raw-table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:.88em}.raw-table th,.raw-table td{text-align:left;padding:12px 8px;border-bottom:1px solid var(--line);overflow-wrap:anywhere;vertical-align:top;line-height:1.45;font-variant-numeric:tabular-nums}.raw-table th{font-size:11px;color:var(--muted);font-weight:600}.raw-table .mono{font-family:ui-monospace,monospace}.raw-table th:nth-child(3){width:15%}.raw-table th:nth-child(8),.raw-table th:nth-child(9){width:15%}.raw-table th:nth-child(4),.raw-table th:nth-child(5){width:8%}.footer{display:flex;align-items:center;justify-content:space-between;gap:12px}.footer-note{font-size:11px;color:var(--muted)}.controls{display:flex;gap:6px;position:relative}.icon-button{border:0;background:transparent;width:44px;height:44px;padding:0;display:grid;place-items:center}.popover{position:absolute;right:0;bottom:50px;min-width:230px;z-index:5;padding:16px;border:1px solid var(--line);border-radius:12px;background:var(--surface);box-shadow:0 8px 30px #0003}.popover h2{font-size:15px;margin-bottom:8px}.popover button{display:block;width:100%;text-align:left;border:0;font-size:15px}.popover button[aria-pressed=true]{color:var(--accent);background:var(--tint)}.emphasize .fail{background:color-mix(in srgb,var(--fail) 10%,transparent)}.sr-only{position:absolute;width:1px;height:1px;clip-path:inset(50%);overflow:hidden}.provenance{color:inherit;text-decoration:underline;cursor:help}
+.matrix-space,.reason-space,.raw-space{overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;scrollbar-width:thin;scrollbar-color:var(--line) transparent}.reason-space{padding-right:12px}.matrix-space:focus-visible,.reason-space:focus-visible,.raw-space:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}.matrix thead,.raw-table thead{position:sticky;top:0;z-index:1;background:var(--surface);box-shadow:0 1px var(--line)}
+@media(max-width:1100px){.app{padding:10px;gap:0 16px;grid-template-columns:70px minmax(0,1fr)}.workspace{gap:16px;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}.matrix{padding:12px}.wordmark{font-size:25px}.header-tools label{display:none}.verdict h1{font-size:25px}.verdict-meta{min-width:120px}.latency{display:block;margin:0}.matrix th,.matrix td{padding:6px}.footer-note{max-width:75%}}
+@media(max-height:720px){.app{grid-template-rows:64px minmax(0,1fr) 52px}.overview{gap:12px}.verdict{padding:0 0 8px}.verdict h1{font-size:28px;line-height:1.25}.matrix{padding:12px 16px 4px}.panel-head{margin-bottom:4px}.matrix th,.matrix td{padding-top:3px;padding-bottom:3px;line-height:1.25}.target th{padding-top:2px;padding-bottom:2px}.matrix thead th{padding-bottom:4px}.probe .craft{font-size:27px}.matrix-foot{padding-top:4px;font-size:10px}}
+@media(prefers-reduced-motion:no-preference){button{transition:background .14s,color .14s}}
+.main{display:flex;flex-direction:column}.view{height:auto;flex:1;min-height:0}.notice{flex-shrink:0;max-height:84px;overflow:auto;overscroll-behavior:contain;border-left:3px solid var(--warn);padding:8px 12px;margin-bottom:10px;color:var(--warn);font-size:14px}.notice.error{border-color:var(--fail);color:var(--fail)}.connection{display:flex;flex-direction:column;text-align:right;font-size:12px;color:var(--muted)}.connection b{font-weight:400}.connection.is-off{color:var(--warn)}.header-tools .primary:hover:not(:disabled){background:var(--tint);color:var(--accent)}.panel-head,.matrix-foot{flex-shrink:0}.raw-heading{flex-shrink:0}
 </style>
 </head>
 <body>
-<main>
-  <header>
-    <div>
-      <h1>FaultWitness</h1>
-      <div class="sub">ระบบรวบรวมหลักฐานเพื่อหาบริเวณที่เน็ตมีปัญหา · Probe A และ B ตรวจพร้อมกันทุกรอบ</div>
-    </div>
-    <div class="actions">
-      <span id="live" class="live">กำลังเชื่อมต่อ…</span>
-      <button id="check" class="primary" type="button">ตรวจเดี๋ยวนี้</button>
-    </div>
-  </header>
-  <div id="conn" class="notice bad" role="status" hidden></div>
-  <div id="dash"><div class="panel empty"><div class="big">กำลังโหลด…</div></div></div>
-</main>
-
+<div class="app">
+<nav class="rail" aria-label="หน้าหลัก"><div class="rail-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M3 12h4l3-7 4 14 3-7h4"/></svg></div><button class="nav" id="nav-overview" aria-current="page" data-page="overview"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="18" rx="2"/><rect x="14" y="3" width="7" height="10" rx="2"/><path d="M14 17h7m-7 4h7"/></svg><span>ผลวิเคราะห์</span></button><button class="nav" id="nav-results" data-page="results"><svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M9 4v16M15 4v16m-12-5h18"/></svg><span>ผลตรวจดิบ</span></button><span class="rail-foot">EVIDENCE DESK / 02</span></nav>
+<header class="masthead"><div><div class="wordmark craft">FaultWitness</div><div class="breadcrumb"><span id="page-label" class="small">ผลวิเคราะห์</span></div></div><div class="header-tools"><div class="connection" id="connection"><b id="live">กำลังเชื่อมต่อเครื่องหลัก…</b><span id="fresh">รอรายงานล่าสุด</span></div><button id="check" class="primary" type="button">ตรวจเดี๋ยวนี้</button></div></header>
+<main class="main"><div id="conn" class="notice" role="status" hidden></div><div id="action-error" class="notice error" role="alert" hidden></div><section id="overview" class="view overview" aria-label="ผลวิเคราะห์"><div class="verdict"><div><div id="status-line" class="status-line"></div><h1 id="verdict-title"></h1></div><div class="verdict-meta"><b id="alert"></b><span id="round"></span></div></div><div class="workspace" id="workspace" hidden><section class="panel matrix" aria-labelledby="matrix-title"><div class="panel-head"><h2 id="matrix-title">หลักฐานจากสองจุด</h2><span class="small">รอบเดียวกัน</span></div><div id="matrix-space" class="matrix-space" role="region" tabindex="0" aria-label="ตารางหลักฐานจากสองจุด เลื่อนภายในช่อง"><table><thead id="matrix-head"></thead><tbody id="matrix-body"></tbody></table></div><p class="matrix-foot" id="matrix-foot"></p></section><section class="panel reasoning" aria-labelledby="reason-title"><div class="panel-head"><h2 id="reason-title">ทำไมจึงสรุปเช่นนี้</h2></div><div id="reason-space" class="reason-space" role="region" tabindex="0" aria-label="คำอธิบายและคำแนะนำ เลื่อนภายในช่อง"></div></section></div></section>
+<section id="results" class="view raw-view" aria-label="ผลตรวจดิบ" hidden><div class="raw-heading"><div><p class="small">หลักฐานต้นทาง / HTTP(S) · DNS · TCP</p><h1>ผลตรวจดิบ</h1></div><span id="raw-meta" class="small"></span></div><p id="raw-empty" class="muted">กำลังขอรายงานจากเครื่องหลัก…</p><div class="raw-panel" id="raw-panel" hidden><div id="raw-space" class="raw-space" role="region" tabindex="0" aria-label="ผลตรวจดิบ เลื่อนภายในตาราง"><table class="raw-table"><caption class="sr-only">ผลตรวจดิบครบทุกคอลัมน์</caption><thead id="raw-head"></thead><tbody id="raw-body"></tbody></table></div><div id="raw-count" class="panel-note"></div></div></section></main>
+<footer class="footer"><p class="footer-note" id="record-note">HTTP(S) · DNS · TCP / หลักฐานจากสองจุดตรวจ</p><div class="controls"><button id="theme-toggle" class="icon-button" aria-label="ธีมหน้าจอ" aria-expanded="false" aria-controls="theme-pop" title="ธีมหน้าจอ"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M5 19l1.4-1.4M17.6 6.4L19 5"/></svg></button><button id="size-toggle" class="icon-button" aria-label="ขนาดสำหรับผู้ชม" aria-expanded="false" aria-controls="size-pop" title="ขนาดสำหรับผู้ชม"><span aria-hidden="true" style="font:20px Georgia,serif">Aa</span></button><button id="emphasis-toggle" class="icon-button" aria-label="เน้นผลที่ไม่ผ่าน" aria-pressed="false" title="เน้นผลที่ไม่ผ่าน"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 17h16"/><circle cx="9" cy="7" r="3" fill="var(--surface)"/><circle cx="16" cy="17" r="3" fill="var(--surface)"/></svg></button><div id="theme-pop" class="popover" hidden><h2>ธีมหน้าจอ</h2><button data-theme="system">ตามเครื่อง</button><button data-theme="light">สว่าง</button><button data-theme="dark">มืด</button></div><div id="size-pop" class="popover" hidden><h2>ขนาดสำหรับผู้ชม</h2><button data-size="standard">มาตรฐาน</button><button data-size="present">นำเสนอ</button></div></div></footer>
+</div>
+<div class="sr-only" id="announcement" role="status" aria-live="polite" aria-atomic="true"></div>
 <script>
 'use strict';
 
-// ---- Thai labels (duplicated from src/diagnosis/labels.ts; this page has no build step) ----
-const TN = { 'local-service': 'บริการภายใน', 'site-x': 'เว็บไซต์ X', 'site-y': 'เว็บไซต์ Y' };
-const ERR = {
-  timeout: 'หมดเวลา',
-  refused: 'ถูกปฏิเสธการเชื่อมต่อ',
-  dns_timeout: 'DNS ไม่ตอบ',
-  dns_error: 'แปลงชื่อไม่ได้',
-  tls_cert: 'ใบรับรองไม่ผ่าน',
-  http_status: 'ตอบสถานะผิดปกติ',
-};
-const EXTERNAL = ['site-x', 'site-y'];
-const PROBES = ['A', 'B'];
-const POLL_MS = 2000;
+const $=id=>document.getElementById(id);
+const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const targets=[['local-service','บริการภายใน'],['site-x','เว็บไซต์ X'],['site-y','เว็บไซต์ Y']];
+const columns=['probe_id','round_id','target','test','success','duration_ms','error_type','started_at','finished_at'];
+const errors={dns_timeout:'DNS ไม่ตอบ',dns_error:'แปลงชื่อไม่ได้',tls_cert:'ใบรับรองไม่ผ่าน',timeout:'หมดเวลา',refused:'ปฏิเสธการเชื่อมต่อ',http_status:'สถานะผิดปกติ'};
+let view=location.hash==='#results'?'results':'overview';
+let prefs={theme:'system',size:'standard',emphasis:false};
+try{const saved=JSON.parse(localStorage.getItem('faultwitness-display-v1')||'{}');
+if(['system','light','dark'].includes(saved.theme))prefs.theme=saved.theme;
+if(['standard','present'].includes(saved.density))prefs.size=saved.density;
+prefs.emphasis=saved.emphasis===true;}catch{}
+const r=()=>report;
+function save(){try{localStorage.setItem('faultwitness-display-v1',JSON.stringify({theme:prefs.theme,density:prefs.size,emphasis:prefs.emphasis}))}catch{}}
+const media=matchMedia('(prefers-color-scheme:dark)');
+function applyPrefs(){document.documentElement.dataset.theme=prefs.theme==='system'?(media.matches?'dark':'light'):prefs.theme;document.documentElement.dataset.size=prefs.size;document.body.classList.toggle('emphasize',prefs.emphasis);$('emphasis-toggle').setAttribute('aria-pressed',String(prefs.emphasis));document.querySelectorAll('[data-theme]').forEach(el=>{if(el.tagName==='BUTTON')el.setAttribute('aria-pressed',String(el.dataset.theme===prefs.theme))});document.querySelectorAll('button[data-size]').forEach(el=>el.setAttribute('aria-pressed',String(el.dataset.size===prefs.size)))}
+function closePops(){for(const id of ['theme','size']){$(id+'-pop').hidden=true;$(id+'-toggle').setAttribute('aria-expanded','false')}}
+for(const id of ['theme','size']){$(id+'-toggle').onclick=()=>{const open=$(id+'-pop').hidden;closePops();$(id+'-pop').hidden=!open;$(id+'-toggle').setAttribute('aria-expanded',String(open));if(open)$(id+'-pop').querySelector('button').focus()};$(id+'-pop').onclick=e=>{const b=e.target.closest('button');if(!b)return;prefs[id]=b.dataset[id];save();closePops();applyPrefs();$(id+'-toggle').focus()}}
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){const active=['theme','size'].find(id=>!$(id+'-pop').hidden);closePops();if(active)$(active+'-toggle').focus()}});
+document.addEventListener('click',e=>{if(!e.target.closest('.controls'))closePops()});
+$('emphasis-toggle').onclick=()=>{prefs.emphasis=!prefs.emphasis;save();applyPrefs()};media.addEventListener('change',applyPrefs);
+function changeView(next){view=next;for(const id of ['overview','results']){$(id).hidden=id!==view;$('nav-'+id).setAttribute('aria-current',id===view?'page':'false')}$('page-label').textContent=view==='overview'?'ผลวิเคราะห์':'ผลตรวจดิบ'}
+document.querySelectorAll('[data-page]').forEach(b=>b.onclick=()=>{location.hash=b.dataset.page;changeView(b.dataset.page)});addEventListener('hashchange',()=>changeView(location.hash==='#results'?'results':'overview'));
+function cell(probe,target,test){const row=r().results.find(x=>x.probe_id===probe&&x.target===target&&x.test===test);if(!row)return `<td class="skip">${r().results.some(x=>x.probe_id===probe)?'ไม่ได้ตรวจ':'ไม่มีผลรอบนี้'}</td>`;return `<td class="${row.success?'pass':'fail'}">${row.success?'✓ ผ่าน':'× ไม่ผ่าน'}<span class="latency">${esc(row.duration_ms)} ms</span>${!row.success?`<span class="error-detail">${esc(errors[row.error_type]||row.error_type)}</span>`:''}</td>`}
+function matrixRows(){return targets.flatMap(([id,name],i)=>(id==='local-service'?['http']:['http','dns','tcp']).map((test,j)=>({group:`<tr class="target"><th colspan="3"><span class="num">0${i+1}</span>${name}</th></tr>`,target:id,html:`<tr><th scope="row">${test==='http'&&id!=='local-service'?'HTTPS':test.toUpperCase()}</th>${cell('A',id,test)}${cell('B',id,test)}</tr>`})));}
+function matrixHtml(rows){let previous;return rows.map(row=>{const h=(previous!==row.target?row.group:'')+row.html;previous=row.target;return h}).join('')}
+function reasonBlocks(){const report=r(),out=[];const add=(title,text,kind='')=>out.push({title,text,kind});if(connected===false)add('ขาดการเชื่อมต่อเครื่องหลัก','ตรวจการเชื่อมต่อกับเครื่องหลักก่อนใช้ผลเดิมตัดสินใจ ระบบจะลองเชื่อมต่อใหม่อัตโนมัติ');if(report.stale)add('ผลเดิมเพื่ออ้างอิง','ไม่มีผลใหม่ตามเกณฑ์ของเครื่องหลัก จึงยังใช้ข้อมูลนี้ยืนยันสถานะปัจจุบันไม่ได้');if(!report.findings.length){add(connected===false?'ผลรอบเดิมเพื่ออ้างอิง':'การทดสอบผ่านจากทั้งสองจุด',connected===false?'ผลรอบก่อนหน้าผ่านจากทุกจุด แต่ยังใช้ยืนยันสถานะปัจจุบันไม่ได้':'การทดสอบที่กำหนดผ่านจากทุกจุด ไม่ต้องตรวจ DNS / TCP เพิ่มในรอบนี้');add('ขอบเขตของข้อสรุป','แสดงผลเฉพาะปลายทางและการทดสอบที่กำหนดในรอบนี้');add('ตรวจต่อที่แนะนำ','ไม่มีรายการตรวจต่อจากข้อสรุปในรอบนี้','next')}
+for(const [i,f] of report.findings.entries()){add(f.title,`${f.status} · หลักฐาน: ${f.evidence_level_label} · พบ ${f.rounds_seen} รอบ${(connected===false||(report.stale&&i>0))?' · ข้อสรุปเดิมเพื่ออ้างอิง':''}`);for(const text of f.supporting)add('หลักฐานที่สนับสนุน',text);for(const text of f.missing)add('หลักฐานที่ยังขาด',text);for(const text of f.next_steps)add('ตรวจต่อที่แนะนำ',text,'next')}
+for(const o of report.observations){add('ข้อสังเกต · ไม่ใช่ข้อสรุป'+(connected===false||report.stale?' · ผลเดิมเพื่ออ้างอิง':''),o.text);for(const text of o.next_steps)add('ตรวจต่อจากข้อสังเกต',text,'next')}return out}
+function blockHtml(b){return `<article class="reason-block ${b.kind}"><h3>${esc(b.title)}</h3><p>${esc(b.text)}</p></article>`}
+function rawHtml(rows){return rows.map(row=>`<tr>${columns.map(c=>`<td class="${c==='success'?(row[c]?'pass':'fail'):''}">${esc(row[c]===null?'null':row[c])}</td>`).join('')}</tr>`).join('')}
 
-const TABLE_ROWS = [['local-service', 'http', 'HTTP บริการภายใน'],
-  ...EXTERNAL.flatMap((t) => [[t, 'http', `HTTPS ${TN[t]} (ใช้ชื่อโฮสต์)`], [t, 'dns', `DNS lookup ${TN[t]}`], [t, 'tcp', `TCP ไป IP:443 ของ ${TN[t]}`]])];
-
-// ---- helpers ----
-const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ESC[c]);
-const secs = (ms) => Math.max(0, Math.round(ms / 1000));
-const list = (items) => items.length ? `<ul>${items.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '<ul><li class="muted">—</li></ul>';
-
-// ---- rendering (follows the prototype's renderDash) ----
-function renderNoData() {
-  return `<div class="panel empty">
-    <div class="big">ยังไม่มีผลตรวจ</div>
-    <p class="muted" style="margin-top:8px">เครื่องหลักยังไม่ได้รับผลการตรวจจาก Probe ใดเลย · รอบตรวจถัดไปจะเริ่มเองภายในไม่กี่วินาที หรือกด “ตรวจเดี๋ยวนี้”</p>
-  </div>`;
-}
-
-function cell(r, p, t, test, reported) {
-  if (!reported.has(p)) return '<td class="skip">ไม่มีผล</td>';
-  const x = r.results.find((y) => y.probe_id === p && y.target === t && y.test === test);
-  if (!x) return '<td class="skip">— ไม่ได้ตรวจ (ไม่จำเป็น)</td>';
-  return x.success
-    ? `<td class="okc num">✓ ${esc(x.duration_ms)} ms</td>`
-    : `<td class="badc num"><span class="nw">✗ ${esc(ERR[x.error_type] || x.error_type)}</span> <span class="nw">· ${esc(x.duration_ms)} ms</span></td>`;
-}
-
-function probeHeader(r, p) {
-  const info = r.probes.find((x) => x.probe_id === p);
-  if (!info) return `<th>Probe ${esc(p)}</th>`;
-  const cls = info.state === 'lost' ? 'v-bad' : info.state === 'silent' ? 'v-warn' : 'v-ok';
-  const seen = info.last_seen_ms === null ? 'ยังไม่เคยส่งผล' : `ผลล่าสุด ${secs(r.generated_at - info.last_seen_ms)} วินาทีที่แล้ว`;
-  return `<th><span class="probe-h">Probe ${esc(p)}</span><div class="${cls} nw">${esc(info.state_label)}</div><div class="small muted num nw">${esc(seen)}</div></th>`;
-}
-
-function renderReport(r) {
-  const age = secs(r.generated_at - r.finished_at);
-  const problem = r.findings.some((f) => f.code !== 'insufficient' && f.code !== 'nodata');
-  const cls = r.stale ? 'warn' : !r.findings.length ? 'ok' : problem ? 'bad' : 'warn';
-  const alert = r.stale ? '<span class="alert stale">ข้อมูลไม่เป็นปัจจุบัน</span>'
-    : r.alert ? '<span class="alert on">🔔 แจ้งเตือน</span>'
-    : r.findings.length ? '<span class="alert watch">เฝ้าดู — พบครั้งแรก รอยืนยัน</span>'
-    : '<span class="alert">ไม่มีแจ้งเตือน</span>';
-
-  let h = `<section class="panel hero ${cls}">
-    <div class="hero-top">
-      <div><div class="label">สถานะรวม</div><div class="big ${cls}">${esc(r.overall)}</div></div>
-      ${alert}
-    </div>
-    <div class="meta">
-      <span>รอบ <b>${esc(r.round_id)}</b></span>
-      <span>ตรวจเสร็จเมื่อ <b>${age}</b> วินาทีที่แล้ว</span>
-      <span>รอบนี้ใช้ <b>${esc(r.tests_this_round)}</b> การทดสอบ · ตรวจทุกอย่างต้องใช้ <b>${esc(r.tests_if_full_sweep)}</b></span>
-    </div>
-    ${r.stale ? `<div class="stale-banner">⚠ ผลเก่า — ไม่มีผลใหม่มา ${age} วินาทีแล้ว จึงไม่แสดงผลรอบ ${esc(r.round_id)} เป็นสถานะปัจจุบัน · ข้อสรุปและตารางด้านล่างแสดงเพื่ออ้างอิงเท่านั้น</div>` : ''}
-  </section>`;
-
-  // left column: Findings and Observations
-  let left = '';
-  if (!r.findings.length && !r.stale) {
-    left += `<div class="allgood">การทดสอบที่กำหนดผ่านจากทุกจุด · ใช้ ${esc(r.tests_this_round)} การทดสอบ ไม่ต้องตรวจ DNS/TCP เพิ่ม (ตรวจทุกอย่างต้องใช้ ${esc(r.tests_if_full_sweep)})</div>`;
-  } else if (!r.findings.length) {
-    left += '<p class="muted">ไม่มีข้อสรุปในรอบล่าสุด</p>';
-  }
-  // when Stale, the first Finding says so; the rest are the old Round's, shown for reference only
-  r.findings.forEach((f, i) => {
-    left += `<article class="finding ${r.stale && i > 0 ? 'dim' : ''}">
-      <div class="head"><span class="tag st">${esc(f.status)}</span><span class="tag lv-${esc(f.evidence_level)}">หลักฐาน: ${esc(f.evidence_level_label)} · พบ ${esc(f.rounds_seen)} รอบ</span></div>
-      <div class="title">${esc(f.title)}</div>
-      <div class="cols">
-        <div><h3>หลักฐานที่สนับสนุน</h3>${list(f.supporting)}</div>
-        <div><h3>หลักฐานที่ยังขาด</h3>${list(f.missing)}</div>
-        <div><h3>ตรวจต่อที่แนะนำ</h3>${list(f.next_steps)}</div>
-      </div>
-    </article>`;
-  });
-  for (const o of r.observations) {
-    left += `<div class="obs ${r.stale ? 'dim' : ''}"><b>ข้อสังเกต (ไม่ใช่ข้อสรุป):</b> ${esc(o.text)}${o.next_steps.length ? `<br><span class="muted">ตรวจต่อ: ${o.next_steps.map(esc).join(' · ')}</span>` : ''}</div>`;
-  }
-
-  // right column: Probe A vs B, built from the latest Round's Results
-  const reported = new Set(r.results.map((x) => x.probe_id));
-  const right = `<h2>Probe A เทียบ Probe B · รอบ ${esc(r.round_id)}</h2>
-    <table class="${r.stale ? 'dim' : ''}">
-      <tr><th>การตรวจ</th>${PROBES.map((p) => probeHeader(r, p)).join('')}</tr>
-      ${TABLE_ROWS.map(([t, test, label]) => `<tr><td>${esc(label)}</td>${PROBES.map((p) => cell(r, p, t, test, reported)).join('')}</tr>`).join('')}
-    </table>
-    <p class="muted small" style="margin-top:8px">รอบนี้ใช้ ${esc(r.tests_this_round)} การทดสอบ · ตรวจทุกอย่างต้องใช้ ${esc(r.tests_if_full_sweep)} · DNS/TCP ทำเฉพาะปลายทางภายนอกที่ HTTP ไม่ผ่าน และทำทั้งสองจุดเพื่อใช้เทียบกัน</p>`;
-
-  const cols = ['probe_id', 'round_id', 'target', 'test', 'success', 'duration_ms', 'error_type', 'started_at', 'finished_at'];
-  const raw = `<details id="raw"${rawOpen ? ' open' : ''}><summary>ผลการตรวจดิบของรอบ ${esc(r.round_id)} (${r.results.length} แถว — ข้อมูลที่ตัววิเคราะห์ได้รับ)</summary>
-    <div style="overflow-x:auto"><table class="raw" style="margin-top:6px"><tr>${cols.map((c) => `<th>${c}</th>`).join('')}</tr>
-    ${r.results.map((x) => `<tr>${cols.map((c) => `<td>${esc(x[c] === null ? 'null' : x[c])}</td>`).join('')}</tr>`).join('')}</table></div></details>`;
-
-  return `${h}<div class="grid">
-    <section class="panel"><h2>ข้อสรุปและข้อสังเกต</h2>${left}</section>
-    <section class="panel">${right}</section>
-  </div>
-  <section class="panel">${raw}</section>`;
-}
-
-// ---- state, polling and the check-now button ----
-let rawOpen = false;
-let lastGeneratedAt = -Infinity;
-let lastOkAt = null;
+const seconds=ms=>Math.max(0,Math.floor(ms/1000));
+const dateTime=ms=>new Intl.DateTimeFormat('th-TH',{dateStyle:'medium',timeStyle:'medium',timeZone:'Asia/Bangkok'}).format(new Date(ms));
+const ageMarkup=timestamp=>`<span data-age="${esc(timestamp)}">0</span> วินาทีที่แล้ว`;
+const htmlCache = new Map();
+let report = null;
+let connected = null;
+let receivedAt = null;
+let reportReceivedAt = null;
 let pending = false;
+let issuedRequest = 0;
+let appliedRequest = 0;
+let lastAnnouncement = '';
 
-const dash = document.getElementById('dash');
-const conn = document.getElementById('conn');
-const live = document.getElementById('live');
-const btn = document.getElementById('check');
-
-dash.addEventListener('toggle', (e) => { if (e.target.id === 'raw') rawOpen = e.target.open; }, true);
-
-function show(report, force) {
-  if (!report || report.status === 'no-data') {
-    lastGeneratedAt = -Infinity;
-    dash.innerHTML = renderNoData();
+// Patch text/attributes in place. Existing table scroll containers, keyboard focus and
+// the raw-data disclosure survive polling; unchanged reports do not replace their DOM.
+function syncNode(current, incoming) {
+  if (current.nodeType !== incoming.nodeType || current.nodeName !== incoming.nodeName) {
+    current.replaceWith(incoming.cloneNode(true));
     return;
   }
-  // A poll that left before a POST /rounds may answer after it; never step back to an older report.
-  if (!force && report.generated_at < lastGeneratedAt) return;
-  lastGeneratedAt = report.generated_at;
-  dash.innerHTML = renderReport(report);
-}
-
-function setConnection(ok, msg) {
-  if (ok) {
-    lastOkAt = Date.now();
-    conn.hidden = true;
-    live.className = 'live';
-    live.textContent = 'อัปเดตอัตโนมัติทุก 2 วินาที';
-  } else {
-    const since = lastOkAt === null ? '' : ` · ข้อมูลบนจอได้รับล่าสุดเมื่อ ${secs(Date.now() - lastOkAt)} วินาทีที่แล้ว`;
-    conn.hidden = false;
-    conn.textContent = `${msg}${since}`;
-    live.className = 'live off';
-    live.textContent = 'ขาดการเชื่อมต่อ';
+  if (current.nodeType === Node.TEXT_NODE) {
+    if (current.nodeValue !== incoming.nodeValue) current.nodeValue = incoming.nodeValue;
+    return;
   }
+  if (current.nodeType !== Node.ELEMENT_NODE) return;
+  for (const attr of [...current.attributes]) if (!incoming.hasAttribute(attr.name)) current.removeAttribute(attr.name);
+  for (const attr of [...incoming.attributes]) if (current.getAttribute(attr.name) !== attr.value) current.setAttribute(attr.name, attr.value);
+  syncChildren(current, incoming);
+}
+function syncChildren(current, incoming) {
+  const desired = [...incoming.childNodes];
+  desired.forEach((child, index) => {
+    const existing = current.childNodes[index];
+    if (existing) syncNode(existing, child);
+    else current.appendChild(child.cloneNode(true));
+  });
+  while (current.childNodes.length > desired.length) current.lastChild.remove();
+}
+function put(id, html) {
+  if (htmlCache.get(id) === html) return;
+  const template = document.createElement('template');
+  template.innerHTML = html;
+  syncChildren($(id), template.content);
+  htmlCache.set(id, html);
+}
+function announce(message) {
+  if (message === lastAnnouncement) return;
+  $('announcement').textContent = message;
+  lastAnnouncement = message;
 }
 
-async function getJson(url, init) {
-  const res = await fetch(url, { cache: 'no-store', ...init });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
+function render() {
+  const reference=connected===false||Boolean(report?.stale);
+  const first=report?.findings[0];
+  const status=connected===false?'ขาดการเชื่อมต่อเครื่องหลัก':report?.overall||'รอผลจากจุดตรวจ';
+  const title=connected===false?'ยังยืนยันสถานะปัจจุบันไม่ได้':!report?(connected===null?'กำลังโหลด…':'ยังไม่มีผลตรวจ'):report.stale?'ข้อมูลยังไม่พอที่จะบอกสถานะปัจจุบัน':report.findings.length===1?first.title:report.findings.length?`พบ ${report.findings.length} ข้อสรุปที่ต้องตรวจสอบ`:report.overall;
+  const color=reference||!report?'var(--warn)':report.alert?'var(--fail)':report.findings.length?'var(--warn)':'var(--pass)';
+  $('status-line').textContent=status;
+  $('status-line').style.color=color;
+  $('verdict-title').textContent=title;
+  $('alert').textContent=reference?'ผลเดิมเพื่ออ้างอิง':!report?'รอผลตรวจ':report.alert?'แจ้งเตือน':report.findings.length?'เฝ้าดู · รอหลักฐานเพิ่ม':'ไม่มีแจ้งเตือน';
+  $('alert').style.color=color;
+  put('round',report?`รอบ ${esc(report.round_id)} · ${esc(report.results.length)} ผลตรวจ<br>ตรวจเสร็จ ${ageMarkup(report.finished_at)}`:'รอผลจากจุดตรวจ A / B');
+  $('workspace').hidden=!report;
+  $('raw-panel').hidden=!report;
+  $('raw-empty').hidden=Boolean(report);
+  $('raw-empty').textContent=connected===false?'ติดต่อเครื่องหลักไม่ได้ ยังไม่มีผลตรวจสำหรับแสดง':connected===null?'กำลังขอรายงานจากเครื่องหลัก…':'เครื่องหลักยังไม่ได้รับผลตรวจ รอรอบถัดไปหรือกดตรวจเดี๋ยวนี้';
+  announce(`${status} · ${title} · ${$('alert').textContent}`);
+  if(!report){$('raw-meta').textContent='ยังไม่มีรอบตรวจ';$('record-note').textContent='HTTP(S) · DNS · TCP / รอผลจากจุดตรวจ';return;}
+  put('matrix-head','<tr><th scope="col">การทดสอบ</th>'+['A','B'].map(id=>{
+    const probe=report.probes.find(p=>p.probe_id===id);
+    return `<th scope="col"><span class="probe">Probe <span class="craft">${id}</span></span><span class="probe-caption">${esc(probe?.state_label||'ไม่มีข้อมูล')}</span><span class="probe-caption">${probe?.last_seen_ms==null?'ยังไม่เคยส่งผล':`ผลล่าสุด ${ageMarkup(probe.last_seen_ms)}`}</span></th>`;
+  }).join('')+'</tr>');
+  put('matrix-body',matrixHtml(matrixRows()));
+  put('reason-space',reasonBlocks().map(blockHtml).join(''));
+  $('matrix-foot').textContent=`${reference?'ผลเดิมเพื่ออ้างอิง · ':''}ใช้ ${report.tests_this_round} การทดสอบ · ตรวจครบทุกอย่าง ${report.tests_if_full_sweep} · DNS / TCP เพิ่มเมื่อ HTTP ไม่ผ่าน`;
+  put('raw-head','<tr>'+columns.map(c=>`<th scope="col">${c}</th>`).join('')+'</tr>');
+  put('raw-body',rawHtml(report.results));
+  $('raw-count').textContent=`${report.results.length} แถว · เลื่อนภายในตารางเพื่ออ่านผลทั้งหมด`;
+  $('raw-meta').textContent=`รอบ ${report.round_id} · ${report.results.length} แถว${reference?' · เพื่ออ้างอิงเท่านั้น':''}`;
+  $('record-note').textContent=`รอบ ${report.round_id} · ${dateTime(report.finished_at)} (เวลาไทย)${reference?' · ผลเดิมเพื่ออ้างอิง':''}`;
+  updateAges();
 }
-
-async function poll() {
+function updateAges() {
+  const now = performance.now();
+  if (report && reportReceivedAt !== null) {
+    const collectorNow = report.generated_at + Math.max(0, now - reportReceivedAt);
+    document.querySelectorAll('[data-age]').forEach((element) => { element.textContent = seconds(collectorNow - Number(element.dataset.age)); });
+  }
+  if (receivedAt !== null) $('fresh').textContent = `รับรายงานล่าสุด ${seconds(now - receivedAt)} วินาทีที่แล้ว`;
+}
+function setConnection(ok) {
+  connected = ok;
+  $('connection').classList.toggle('is-off', !ok);
+  $('live').textContent = ok ? 'เชื่อมต่อเครื่องหลัก · อัปเดตทุก 2 วินาที' : 'ขาดการเชื่อมต่อเครื่องหลัก';
+  $('conn').hidden = ok;
+  $('conn').textContent = ok ? '' : 'เชื่อมต่อเครื่องหลักไม่ได้ — กำลังลองใหม่ ข้อมูลก่อนหน้าใช้เพื่ออ้างอิงเท่านั้น';
+}
+function accept(data, requestId) {
+  // Both request order and Collector timestamps protect against a slow earlier poll
+  // overwriting a manual Round, including a late no-data response.
+  if (requestId < appliedRequest) return false;
+  if (data.status !== 'no-data' && report && data.generated_at < report.generated_at) return false;
+  appliedRequest = requestId;
+  report = data.status === 'no-data' ? null : data;
+  receivedAt = performance.now();
+  reportReceivedAt = receivedAt;
+  setConnection(true);
+  render();
+  return true;
+}
+async function getJson(path, method = 'GET') {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), method === 'POST' ? 30000 : 10000);
   try {
-    show(await getJson('report'), false);
-    setConnection(true);
-  } catch {
-    setConnection(false, '⚠ เชื่อมต่อเครื่องหลักไม่ได้ — กำลังลองใหม่');
-  } finally {
-    setTimeout(poll, POLL_MS);
-  }
+    const response = await fetch(path, {method, cache:'no-store', signal:controller.signal});
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const data = await response.json();
+    if (!data || (data.status !== 'no-data' && (!Number.isFinite(data.generated_at) || !Array.isArray(data.results) || !Array.isArray(data.findings) || !Array.isArray(data.probes) || !Array.isArray(data.observations)))) throw new Error('Invalid report');
+    return data;
+  } finally { clearTimeout(timeout); }
 }
-
-btn.addEventListener('click', async () => {
+async function poll() {
+  const requestId = ++issuedRequest;
+  try { accept(await getJson('report'), requestId); }
+  catch {
+    if (requestId >= appliedRequest) { setConnection(false); render(); }
+  } finally { setTimeout(poll, 2000); }
+}
+$('check').addEventListener('click', async () => {
   if (pending) return;
   pending = true;
-  btn.disabled = true;
-  btn.textContent = 'กำลังตรวจ…';
+  $('check').disabled = true;
+  $('check').textContent = 'กำลังตรวจ…';
+  $('check').setAttribute('aria-busy', 'true');
+  $('action-error').hidden = true;
+  const requestId = ++issuedRequest;
   try {
-    show(await getJson('rounds', { method: 'POST' }), true);
-    setConnection(true);
+    const accepted = accept(await getJson('rounds', 'POST'), requestId);
+    if (accepted) announce('ตรวจเสร็จแล้ว · ' + (report?.overall || 'ยังไม่มีผลตรวจ'));
   } catch {
-    setConnection(false, '⚠ สั่งตรวจไม่สำเร็จ — เชื่อมต่อเครื่องหลักไม่ได้');
+    $('action-error').textContent = 'สั่งตรวจไม่สำเร็จหรือยังไม่ได้รับคำตอบ — ระบบจะอ่านรายงานต่ออัตโนมัติ คุณสามารถลองตรวจอีกครั้งได้';
+    $('action-error').hidden = false;
   } finally {
     pending = false;
-    btn.disabled = false;
-    btn.textContent = 'ตรวจเดี๋ยวนี้';
+    $('check').disabled = false;
+    $('check').textContent = 'ตรวจเดี๋ยวนี้';
+    $('check').removeAttribute('aria-busy');
   }
 });
 
-poll();
+
+applyPrefs();changeView(view);render();setInterval(updateAges,1000);poll();
 </script>
-</body>
-</html>
+</body></html>
